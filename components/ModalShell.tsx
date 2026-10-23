@@ -31,32 +31,34 @@ export default function ModalShell({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4 backdrop-blur-sm animate-fade-in"
       onClick={onClose}
     >
       <div
-        className={`glass-dark rounded-2xl border border-slate-700/50 w-full ${maxWidth} max-h-[90vh] overflow-y-auto animate-scale-in`}
+        className={`panel w-full ${maxWidth} max-h-[90vh] overflow-y-auto shadow-lift animate-scale-in`}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 p-6 border-b border-slate-700/50 sticky top-0 glass-dark z-10">
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-line bg-elevated p-5">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl ${accent.softBg} ${accent.text} flex items-center justify-center`}>
+            <span
+              className={`flex h-10 w-10 items-center justify-center rounded-lg ${accent.softBg} ${accent.text}`}
+            >
               {icon}
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white">{title}</h2>
-              {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-base font-bold tracking-tight text-ink">{title}</h2>
+              {subtitle && <p className="text-xs uppercase tracking-wider text-muted">{subtitle}</p>}
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-white transition-colors"
+            className="rounded-lg p-2 text-muted transition-colors hover:bg-sunken hover:text-ink"
             aria-label="Cerrar"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-5">{children}</div>
       </div>
     </div>
   );

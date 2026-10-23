@@ -3,6 +3,7 @@ import {
   AlertCircle,
   CheckCircle2,
   ClipboardList,
+  Clock,
   Eye,
   Grid,
   List,
@@ -17,10 +18,10 @@ import {
   Send,
   ShoppingCart,
   Trash2,
+  X,
 } from 'lucide-react';
 
 import ThemeToggle from './components/ThemeToggle';
-import ProductThumb from './components/ProductThumb';
 import ProductDetailModal from './components/ProductDetailModal';
 
 import { ACCENT_STYLES, LOGO_ICONS } from './lib/theme';
@@ -30,8 +31,10 @@ import type { Catalog, Notification, Product, QuoteItem, TabId, Theme } from './
 
 type ViewMode = 'grid' | 'list';
 
-// Con miles de productos no se renderizan todos de golpe: se muestran por tandas.
+// Con miles de referencias no se renderizan todas de golpe: se muestran por tandas.
 const PAGE_SIZE = 60;
+
+const THEME_STORAGE_KEY = 'catalogo:theme';
 
 interface TabDef {
   id: TabId;
@@ -44,7 +47,9 @@ function whatsappNumber(phone: string): string {
   return phone.replace(/\D/g, '');
 }
 
-const THEME_STORAGE_KEY = 'catalogo:theme';
+function formatCount(value: number): string {
+  return value.toLocaleString('es-DO');
+}
 
 // El tema es una preferencia del visitante: se guarda localmente, no en el servidor
 function readStoredTheme(): Theme | null {
@@ -52,18 +57,34 @@ function readStoredTheme(): Theme | null {
   return value === 'light' || value === 'dark' ? value : null;
 }
 
+function AvailabilityBadge({ available }: { available: boolean }) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold ${
+        available
+          ? 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-300'
+          : 'bg-sunken text-muted'
+      }`}
+    >
+      {available ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+      {available ? 'En existencia' : 'Bajo pedido'}
+    </span>
+  );
+}
+
 export default function App() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [theme, setTheme] = useState<Theme>(() => readStoredTheme() ?? 'dark');
+  // El tema claro es el de la web corporativa; el visitante puede cambiarlo.
+  const [theme, setTheme] = useState<Theme>(() => readStoredTheme() ?? 'light');
   const [notification, setNotification] = useState<Notification | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('catalog');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
@@ -93,7 +114,7 @@ export default function App() {
   const categories = catalog?.categories ?? [];
   const products = catalog?.products ?? [];
 
-  const accent = ACCENT_STYLES[config?.accentColor ?? 'amber'];
+  const accent = ACCENT_STYLES[config?.accentColor ?? 'gold'];
   const LogoIcon = LOGO_ICONS[config?.logoType ?? 'wrench'];
 
   // El primer número de la lista es el principal: se usa por defecto.
@@ -102,7 +123,7 @@ export default function App() {
 
   /* ==================== Datos derivados ==================== */
 
-  // Grupos de categorías (navegación): primero el grupo, luego la categoría.
+  // Grupos de categorías (navegación): primero la familia, luego la categoría.
   const groups = useMemo(() => buildGroups(categories), [categories]);
 
   const productsByCategory = useMemo(() => {
@@ -113,15 +134,17 @@ export default function App() {
     return counts;
   }, [products]);
 
+  const availableCount = useMemo(
+    () => products.reduce((total, product) => total + (product.stock > 0 ? 1 : 0), 0),
+    [products]
+  );
+
   const activeGroup = useMemo(
     () => groups.find(group => group.name === selectedGroup) ?? null,
     [groups, selectedGroup]
   );
 
-  const groupCategories = useMemo(
-    () => new Set(activeGroup?.categories ?? []),
-    [activeGroup]
-  );
+  const groupCategories = useMemo(() => new Set(activeGroup?.categories ?? []), [activeGroup]);
 
   const filteredProducts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -138,7 +161,7 @@ export default function App() {
     });
   }, [products, searchTerm, selectedCategory, activeGroup, groupCategories]);
 
-  // Al cambiar los filtros se vuelve a empezar por el primer producto.
+  // Al cambiar los filtros se vuelve a empezar por la primera referencia.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
   }, [searchTerm, selectedGroup, selectedCategory]);
@@ -149,6 +172,7 @@ export default function App() {
   );
 
   const quoteCount = quoteItems.reduce((total, item) => total + item.quantity, 0);
+  const hasFilters = Boolean(searchTerm.trim() || selectedGroup || selectedCategory);
 
   /* ==================== Notificaciones ==================== */
 
@@ -165,7 +189,7 @@ export default function App() {
   /* ==================== Tema ==================== */
 
   useEffect(() => {
-    document.body.classList.toggle('light-theme', theme === 'light');
+    document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
   const toggleTheme = useCallback(() => {
@@ -174,6 +198,14 @@ export default function App() {
       localStorage.setItem(THEME_STORAGE_KEY, next);
       return next;
     });
+  }, []);
+
+  /* ==================== Filtros ==================== */
+
+  const clearFilters = useCallback(() => {
+    setSearchTerm('');
+    setSelectedGroup(null);
+    setSelectedCategory(null);
   }, []);
 
   /* ==================== Solicitud de cotización ==================== */
@@ -245,18 +277,18 @@ export default function App() {
 
   if (!catalog) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-        <div className="text-center max-w-sm">
+      <div className="flex min-h-screen items-center justify-center bg-surface px-6 text-ink">
+        <div className="max-w-sm text-center">
           {loadError ? (
             <>
-              <AlertCircle className="w-12 h-12 mx-auto mb-3 text-rose-400" />
-              <h1 className="font-bold text-white mb-1">No se pudo cargar el catálogo</h1>
-              <p className="text-sm text-slate-400">{loadError}</p>
+              <AlertCircle className="mx-auto mb-3 h-10 w-10 text-rose-600" />
+              <h1 className="font-bold tracking-tight">No se pudo cargar el catálogo</h1>
+              <p className="mt-1 text-sm text-muted">{loadError}</p>
             </>
           ) : (
             <>
-              <Package className="w-12 h-12 mx-auto mb-3 text-slate-500 animate-pulse" />
-              <p className="text-sm text-slate-400">Cargando catálogo…</p>
+              <Package className="mx-auto mb-3 h-10 w-10 animate-pulse text-muted" />
+              <p className="text-sm text-muted">Cargando catálogo…</p>
             </>
           )}
         </div>
@@ -264,28 +296,68 @@ export default function App() {
     );
   }
 
+  /* ==================== Estilos de filtro ==================== */
+
+  const groupChip = (active: boolean) =>
+    `chip px-3 py-1.5 text-sm ${
+      active
+        ? 'border-navy-800 bg-navy-800 text-white'
+        : 'border-line bg-elevated text-muted hover:border-navy-400 hover:text-ink'
+    }`;
+
+  const categoryChip = (active: boolean) =>
+    `chip px-2.5 py-1 text-xs ${
+      active
+        ? `${accent.border} ${accent.softBg} ${accent.text}`
+        : 'border-line bg-elevated text-muted hover:border-navy-400 hover:text-ink'
+    }`;
+
+  const viewButton = (active: boolean) =>
+    `inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+      active ? 'bg-navy-800 text-white' : 'text-muted hover:text-ink'
+    }`;
+
   /* ==================== Render ==================== */
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 pb-16">
+    <div className="min-h-screen bg-surface text-ink">
       {/* ===== Encabezado ===== */}
-      <header className="sticky top-0 z-40 glass border-b border-slate-700/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between gap-4 py-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${accent.gradient} flex items-center justify-center shrink-0`}>
-                <LogoIcon className="w-6 h-6 text-slate-950" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="font-bold text-white leading-tight truncate">{config?.name}</h1>
-                <p className="text-xs text-slate-400 truncate">{config?.slogan}</p>
-              </div>
-            </div>
+      <header className="sticky top-0 z-40 border-b border-line bg-elevated/95 backdrop-blur">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="flex items-center justify-between gap-4 py-3.5">
+            <button
+              onClick={() => setActiveTab('catalog')}
+              className="flex min-w-0 items-center gap-3 text-left"
+              aria-label={`${config?.name} — ir al catálogo`}
+            >
+              <span
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${accent.gradient}`}
+              >
+                <LogoIcon className="h-5 w-5 text-white" />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-[15px] font-bold leading-tight tracking-tight text-ink">
+                  {config?.name}
+                </span>
+                <span className="block truncate text-xs text-muted">{config?.slogan}</span>
+              </span>
+            </button>
 
-            <ThemeToggle theme={theme} onToggle={toggleTheme} accentBg={accent.bg} />
+            <div className="flex shrink-0 items-center gap-2">
+              {config?.contactPhone && (
+                <a
+                  href={`tel:${config.contactPhone.replace(/[^\d+]/g, '')}`}
+                  className="hidden items-center gap-2 rounded-lg border border-line bg-elevated px-3 py-2 text-sm font-medium text-ink transition-colors hover:border-navy-400 md:inline-flex"
+                >
+                  <Phone className="h-4 w-4 text-muted" />
+                  {config.contactPhone}
+                </a>
+              )}
+              <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            </div>
           </div>
 
-          <nav className="flex gap-1 overflow-x-auto pb-2">
+          <nav className="-mb-px flex gap-6 overflow-x-auto">
             {tabs.map(tab => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
@@ -293,13 +365,21 @@ export default function App() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`relative inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
-                    active ? `${accent.bg} text-slate-950` : 'text-slate-400 hover:text-white hover:bg-slate-700/40'
+                  aria-current={active ? 'page' : undefined}
+                  className={`inline-flex items-center gap-2 border-b-2 pb-3 pt-1 text-sm font-semibold whitespace-nowrap transition-colors ${
+                    active
+                      ? 'border-gold-500 text-ink'
+                      : 'border-transparent text-muted hover:text-ink'
                   }`}
                 >
-                  <Icon className="w-4 h-4" /> {tab.label}
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
                   {tab.badge ? (
-                    <span className={`px-1.5 rounded-full text-xs font-bold ${active ? 'bg-slate-950/25' : accent.softBg}`}>
+                    <span
+                      className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${
+                        active ? `${accent.bg} ${accent.onAccent}` : 'bg-sunken text-muted'
+                      }`}
+                    >
                       {tab.badge}
                     </span>
                   ) : null}
@@ -310,415 +390,486 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        {/* ===== Catálogo ===== */}
+      <main>
+        {/* ===== Presentación ===== */}
         {activeTab === 'catalog' && (
-          <section className="tab-enter space-y-5">
-            <div className="flex flex-col lg:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  placeholder="Buscar por nombre, código o modelo…"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl glass text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-2.5 rounded-xl transition-colors ${viewMode === 'grid' ? `${accent.bg} text-slate-950` : 'glass text-slate-400 hover:text-white'}`}
-                  aria-label="Vista en cuadrícula"
-                >
-                  <Grid className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-2.5 rounded-xl transition-colors ${viewMode === 'list' ? `${accent.bg} text-slate-950` : 'glass text-slate-400 hover:text-white'}`}
-                  aria-label="Vista en lista"
-                >
-                  <List className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+          <section className="border-b border-line bg-gradient-to-br from-navy-900 to-navy-950">
+            <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-400">
+                Catálogo de productos
+              </p>
+              <h2 className="mt-3 max-w-3xl text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl">
+                {config?.slogan}
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-navy-200">
+                Consulte referencias y existencias y solicite su cotización sin compromiso. Los precios
+                se envían por WhatsApp o correo.
+              </p>
 
-            {/* Grupos de categorías: primer nivel de navegación */}
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => {
-                  setSelectedGroup(null);
-                  setSelectedCategory(null);
-                }}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  !selectedGroup ? `${accent.bg} text-slate-950` : 'glass text-slate-300 hover:text-white'
-                }`}
-              >
-                Todas
-              </button>
-              {groups.map(group => (
-                <button
-                  key={group.name}
-                  onClick={() => {
-                    setSelectedGroup(group.name);
-                    setSelectedCategory(null);
-                  }}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    selectedGroup === group.name ? `${accent.bg} text-slate-950` : 'glass text-slate-300 hover:text-white'
-                  }`}
-                >
-                  {group.name}
-                  <span
-                    className={`ml-1.5 text-xs ${
-                      selectedGroup === group.name ? 'text-slate-950/70' : 'text-slate-500'
-                    }`}
-                  >
-                    {group.categories.reduce(
-                      (total, category) => total + (productsByCategory.get(category) ?? 0),
-                      0
-                    )}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* Segundo nivel: las categorías del grupo elegido */}
-            {activeGroup && (
-              <div className="flex flex-wrap gap-2 pl-1">
-                <button
-                  onClick={() => setSelectedCategory(null)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                    !selectedCategory
-                      ? `${accent.softBg} ${accent.text} ${accent.border}`
-                      : 'border-slate-700/50 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Todas las de {activeGroup.name}
-                </button>
-                {activeGroup.categories.map(category => (
-                  <button
-                    key={category}
-                    onClick={() => setSelectedCategory(category)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                      selectedCategory === category
-                        ? `${accent.softBg} ${accent.text} ${accent.border}`
-                        : 'border-slate-700/50 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {category}
-                    <span className="ml-1.5 text-slate-500">{productsByCategory.get(category) ?? 0}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <p className="text-xs text-slate-500">
-              {filteredProducts.length} producto{filteredProducts.length === 1 ? '' : 's'}
-              {selectedCategory
-                ? ` en ${selectedCategory}`
-                : activeGroup
-                  ? ` en ${activeGroup.name}`
-                  : ''}
-            </p>
-
-            {filteredProducts.length === 0 ? (
-              <div className="glass rounded-2xl border border-slate-700/50 p-12 text-center text-slate-500">
-                <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No se encontraron productos con los filtros actuales.</p>
-              </div>
-            ) : viewMode === 'grid' ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {visibleProducts.map(product => {
-                  const available = product.stock > 0;
-                  return (
-                    <article
-                      key={product.id}
-                      className="glass rounded-2xl border border-slate-700/50 overflow-hidden card-hover flex flex-col"
-                    >
-                      <div className="relative img-zoom">
-                        <ProductThumb
-                          src=""
-                          alt={product.name}
-                          className="w-full h-32"
-                          iconClassName="w-12 h-12"
-                        />
-                        <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-950/70 text-slate-200 backdrop-blur">
-                          {product.category}
-                        </span>
-                      </div>
-                      <div className="p-4 flex flex-col flex-1">
-                        <h3 className="font-semibold text-white leading-snug">{product.name}</h3>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                              available
-                                ? 'bg-emerald-500/15 text-emerald-400'
-                                : 'bg-slate-600/20 text-slate-400'
-                            }`}
-                          >
-                            {available ? 'Disponible' : 'A pedido'}
-                          </span>
-                          <span className="text-xs text-slate-500 font-mono">{product.id}</span>
-                        </div>
-                        {product.model && (
-                          <p className="text-xs text-slate-400 mt-1">Modelo {product.model}</p>
-                        )}
-                        <div className="mt-auto pt-4 flex gap-2">
-                          <button
-                            onClick={() => setSelectedProduct(product)}
-                            className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl glass text-sm text-slate-200 hover:text-white transition-colors"
-                          >
-                            <Eye className="w-4 h-4" /> Detalle
-                          </button>
-                          <button
-                            onClick={() => addToQuote(product)}
-                            className={`px-3 py-2 rounded-xl ${accent.bg} ${accent.bgHover} text-slate-950 transition-colors`}
-                            aria-label="Agregar a la solicitud"
-                          >
-                            <ShoppingCart className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {visibleProducts.map(product => (
-                  <div
-                    key={product.id}
-                    className="glass rounded-xl border border-slate-700/50 p-3 flex items-center gap-4"
-                  >
-                    <ProductThumb
-                      src=""
-                      alt={product.name}
-                      className="w-14 h-14 rounded-lg shrink-0"
-                      iconClassName="w-6 h-6"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-white truncate">{product.name}</p>
-                      <p className="text-xs text-slate-400 truncate">
-                        {[product.category, product.model && `Modelo ${product.model}`].filter(Boolean).join(' · ')}
-                      </p>
-                    </div>
-                    <span className="hidden sm:block text-xs font-mono text-slate-500">{product.id}</span>
-                    <button
-                      onClick={() => setSelectedProduct(product)}
-                      className="p-2 rounded-lg glass text-slate-300 hover:text-white transition-colors"
-                      aria-label="Ver detalle"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => addToQuote(product)}
-                      className={`p-2 rounded-lg ${accent.bg} ${accent.bgHover} text-slate-950 transition-colors`}
-                      aria-label="Agregar a la solicitud"
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                    </button>
+              <div className="mt-8 flex flex-wrap gap-x-12 gap-y-5">
+                {[
+                  { label: 'Referencias', value: products.length },
+                  { label: 'Líneas de producto', value: categories.length },
+                  { label: 'Con existencia', value: availableCount },
+                ].map(stat => (
+                  <div key={stat.label}>
+                    <p className="font-mono text-2xl font-semibold text-gold-400">
+                      {formatCount(stat.value)}
+                    </p>
+                    <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-navy-300">
+                      {stat.label}
+                    </p>
                   </div>
                 ))}
               </div>
-            )}
-
-            {visibleProducts.length < filteredProducts.length && (
-              <div className="pt-2 text-center">
-                <button
-                  onClick={() => setVisibleCount(count => count + PAGE_SIZE)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold glass text-slate-200 hover:text-white transition-colors"
-                >
-                  Cargar más ({filteredProducts.length - visibleProducts.length} restantes)
-                </button>
-              </div>
-            )}
+            </div>
           </section>
         )}
 
-        {/* ===== Solicitud de cotización ===== */}
-        {activeTab === 'quote' && (
-          <section className="tab-enter grid lg:grid-cols-3 gap-5">
-            <div className="lg:col-span-2 glass rounded-2xl border border-slate-700/50 p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-bold text-white flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5" /> Productos solicitados
-                </h2>
-                {quoteItems.length > 0 && (
-                  <button
-                    onClick={() => setQuoteItems([])}
-                    className="text-xs text-rose-400 hover:underline inline-flex items-center gap-1"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Vaciar lista
-                  </button>
-                )}
-              </div>
-
-              {quoteItems.length === 0 ? (
-                <div className="py-14 text-center text-slate-500">
-                  <ShoppingCart className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Tu solicitud está vacía.</p>
-                  <button
-                    onClick={() => setActiveTab('catalog')}
-                    className={`mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold ${accent.bg} ${accent.bgHover} text-slate-950 transition-colors`}
-                  >
-                    <Package className="w-4 h-4" /> Explorar catálogo
-                  </button>
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+          {/* ===== Catálogo ===== */}
+          {activeTab === 'catalog' && (
+            <section className="tab-enter space-y-5">
+              <div className="panel space-y-4 p-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                    <input
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      placeholder="Buscar por descripción, código o modelo…"
+                      aria-label="Buscar en el catálogo"
+                      className="field pl-9"
+                    />
+                  </div>
+                  <div className="inline-flex shrink-0 self-start rounded-lg border border-line p-0.5">
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={viewButton(viewMode === 'list')}
+                      aria-label="Vista de lista"
+                      aria-pressed={viewMode === 'list'}
+                    >
+                      <List className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={viewButton(viewMode === 'grid')}
+                      aria-label="Vista en cuadrícula"
+                      aria-pressed={viewMode === 'grid'}
+                    >
+                      <Grid className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <ul className="divide-y divide-slate-700/40">
-                  {quoteItems.map(item => (
-                    <li key={item.product.id} className="flex items-center gap-4 py-3">
-                      <ProductThumb
-                        src=""
-                        alt={item.product.name}
-                        className="w-14 h-14 rounded-lg shrink-0"
-                        iconClassName="w-6 h-6"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-white truncate">{item.product.name}</p>
-                        <p className="text-xs text-slate-500 font-mono">{item.product.id}</p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => changeQuantity(item.product.id, -1)}
-                          className="p-1.5 rounded-lg glass text-slate-300 hover:text-white"
-                          aria-label="Quitar una unidad"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </button>
-                        <span className="w-9 text-center font-semibold">{item.quantity}</span>
-                        <button
-                          onClick={() => changeQuantity(item.product.id, 1)}
-                          className="p-1.5 rounded-lg glass text-slate-300 hover:text-white"
-                          aria-label="Agregar una unidad"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </div>
+
+                {/* Familias: primer nivel de navegación */}
+                <div className="border-t border-line pt-4">
+                  <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
+                    Familias
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => {
+                        setSelectedGroup(null);
+                        setSelectedCategory(null);
+                      }}
+                      className={groupChip(!selectedGroup)}
+                    >
+                      Todas
+                      <span className={!selectedGroup ? 'text-white/70' : 'text-muted'}>
+                        {formatCount(products.length)}
+                      </span>
+                    </button>
+                    {groups.map(group => (
                       <button
-                        onClick={() => removeFromQuote(item.product.id)}
-                        className="p-2 rounded-lg text-rose-400 hover:bg-rose-500/10"
-                        aria-label="Eliminar de la solicitud"
+                        key={group.name}
+                        onClick={() => {
+                          setSelectedGroup(group.name);
+                          setSelectedCategory(null);
+                        }}
+                        className={groupChip(selectedGroup === group.name)}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {group.name}
+                        <span className={selectedGroup === group.name ? 'text-white/70' : 'text-muted'}>
+                          {formatCount(
+                            group.categories.reduce(
+                              (total, category) => total + (productsByCategory.get(category) ?? 0),
+                              0
+                            )
+                          )}
+                        </span>
                       </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="glass rounded-2xl border border-slate-700/50 p-5 h-fit">
-              <h2 className="font-bold text-white mb-4">Enviar solicitud</h2>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs uppercase tracking-wide text-slate-400 mb-1.5">
-                    Tu nombre (opcional)
-                  </label>
-                  <input
-                    value={customerName}
-                    onChange={e => setCustomerName(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-800/60 border border-slate-700/50 text-sm text-slate-100 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-wide text-slate-400 mb-1.5">
-                    Comentario (opcional)
-                  </label>
-                  <textarea
-                    value={quoteNote}
-                    onChange={e => setQuoteNote(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-800/60 border border-slate-700/50 text-sm text-slate-100 min-h-[80px] focus:outline-none"
-                  />
-                </div>
-                {phones.length > 1 && (
-                  <div>
-                    <label className="block text-xs uppercase tracking-wide text-slate-400 mb-1.5">
-                      Enviar a
-                    </label>
+                {/* Segundo nivel: las categorías de la familia elegida */}
+                {activeGroup && (
+                  <div className="border-t border-line pt-4">
+                    <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
+                      {activeGroup.name}
+                    </p>
                     <div className="flex flex-wrap gap-2">
-                      {phones.map((option, index) => (
+                      <button
+                        onClick={() => setSelectedCategory(null)}
+                        className={categoryChip(!selectedCategory)}
+                      >
+                        Todas las líneas
+                      </button>
+                      {activeGroup.categories.map(category => (
                         <button
-                          key={option.phone}
-                          type="button"
-                          onClick={() => setPhoneIndex(index)}
-                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                            index === phoneIndex
-                              ? `${accent.bg} text-slate-950`
-                              : 'glass text-slate-300 hover:text-white'
-                          }`}
+                          key={category}
+                          onClick={() => setSelectedCategory(category)}
+                          className={categoryChip(selectedCategory === category)}
                         >
-                          {option.label}
-                          {option.phone ? ` · ${option.phone}` : ''}
+                          {category}
+                          <span className="text-muted">{productsByCategory.get(category) ?? 0}</span>
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
-                <button
-                  onClick={sendQuote}
-                  disabled={quoteItems.length === 0}
-                  className={`w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold transition-colors ${
-                    quoteItems.length === 0
-                      ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
-                      : `${accent.bg} ${accent.bgHover} text-slate-950`
-                  }`}
-                >
-                  <Send className="w-4 h-4" /> Solicitar por WhatsApp
-                </button>
-                <p className="text-xs text-slate-500 text-center">
-                  La solicitud se envía sin precios. Un asesor te responderá con la cotización.
-                </p>
               </div>
-            </div>
-          </section>
-        )}
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted">
+                  <span className="font-semibold text-ink">{formatCount(filteredProducts.length)}</span>{' '}
+                  {filteredProducts.length === 1 ? 'referencia' : 'referencias'}
+                  {selectedCategory
+                    ? ` en ${selectedCategory}`
+                    : activeGroup
+                      ? ` en ${activeGroup.name}`
+                      : ''}
+                </p>
+                {hasFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-navy-700 hover:underline dark:text-navy-300"
+                  >
+                    <X className="h-3.5 w-3.5" /> Limpiar filtros
+                  </button>
+                )}
+              </div>
+
+              {filteredProducts.length === 0 ? (
+                <div className="panel px-6 py-16 text-center">
+                  <Package className="mx-auto h-10 w-10 text-muted/50" />
+                  <p className="mt-4 font-semibold text-ink">Sin resultados</p>
+                  <p className="mt-1 text-sm text-muted">
+                    No hay referencias que coincidan con los filtros aplicados.
+                  </p>
+                  {hasFilters && (
+                    <button onClick={clearFilters} className="btn-ghost mt-5">
+                      Limpiar filtros
+                    </button>
+                  )}
+                </div>
+              ) : viewMode === 'list' ? (
+                <div className="panel divide-y divide-line overflow-hidden">
+                  {visibleProducts.map(product => (
+                    <div
+                      key={product.id}
+                      className="flex items-start gap-4 px-4 py-3.5 transition-colors hover:bg-sunken/60"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                          <span className="font-mono font-medium">{product.id}</span>
+                          <span className="truncate">{product.category}</span>
+                        </div>
+                        <p className="mt-1.5 text-sm font-medium leading-snug text-ink">
+                          {product.name}
+                        </p>
+                        {product.model && (
+                          <p className="mt-0.5 text-xs text-muted">Modelo {product.model}</p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <AvailabilityBadge available={product.stock > 0} />
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => setSelectedProduct(product)}
+                            className="rounded-md border border-line px-2.5 py-1.5 text-muted transition-colors hover:border-navy-400 hover:text-ink"
+                            aria-label={`Ver detalle de ${product.name}`}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => addToQuote(product)}
+                            className={`rounded-md px-2.5 py-1.5 transition-colors ${accent.bg} ${accent.bgHover} ${accent.onAccent}`}
+                            aria-label={`Agregar ${product.name} a la solicitud`}
+                          >
+                            <ShoppingCart className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {visibleProducts.map(product => (
+                    <article
+                      key={product.id}
+                      className="panel flex flex-col p-4 transition-shadow hover:shadow-soft"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-xs font-medium text-muted">{product.id}</span>
+                        <AvailabilityBadge available={product.stock > 0} />
+                      </div>
+                      <div className="flex-1 pt-3">
+                        <h3 className="line-clamp-3 text-sm font-semibold leading-snug text-ink">
+                          {product.name}
+                        </h3>
+                        <p className="mt-2 truncate text-xs text-muted">{product.category}</p>
+                        {product.model && (
+                          <p className="mt-0.5 truncate text-xs text-muted">Modelo {product.model}</p>
+                        )}
+                      </div>
+                      <div className="mt-4 flex gap-2 border-t border-line pt-3">
+                        <button
+                          onClick={() => setSelectedProduct(product)}
+                          className="btn-ghost flex-1"
+                        >
+                          <Eye className="h-4 w-4" /> Detalle
+                        </button>
+                        <button
+                          onClick={() => addToQuote(product)}
+                          className={`rounded-lg px-3 py-2 transition-colors ${accent.bg} ${accent.bgHover} ${accent.onAccent}`}
+                          aria-label={`Agregar ${product.name} a la solicitud`}
+                        >
+                          <ShoppingCart className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+
+              {visibleProducts.length < filteredProducts.length && (
+                <div className="pt-2 text-center">
+                  <button
+                    onClick={() => setVisibleCount(count => count + PAGE_SIZE)}
+                    className="btn-ghost px-5 py-2.5"
+                  >
+                    Cargar más referencias
+                    <span className="text-muted">
+                      ({formatCount(filteredProducts.length - visibleProducts.length)} restantes)
+                    </span>
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ===== Solicitud de cotización ===== */}
+          {activeTab === 'quote' && (
+            <section className="tab-enter grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="panel p-5">
+                <div className="flex items-center justify-between gap-3 border-b border-line pb-4">
+                  <h2 className="flex items-center gap-2 font-bold tracking-tight text-ink">
+                    <ClipboardList className="h-5 w-5 text-muted" /> Productos solicitados
+                  </h2>
+                  {quoteItems.length > 0 && (
+                    <button
+                      onClick={() => setQuoteItems([])}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-700 hover:underline dark:text-rose-300"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Vaciar lista
+                    </button>
+                  )}
+                </div>
+
+                {quoteItems.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <ShoppingCart className="mx-auto h-10 w-10 text-muted/50" />
+                    <p className="mt-4 font-semibold text-ink">Su solicitud está vacía</p>
+                    <p className="mt-1 text-sm text-muted">
+                      Agregue referencias del catálogo para pedir su cotización.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab('catalog')}
+                      className={`btn-accent mt-5 ${accent.bg} ${accent.bgHover} ${accent.onAccent}`}
+                    >
+                      <Package className="h-4 w-4" /> Explorar catálogo
+                    </button>
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-line">
+                    {quoteItems.map(item => (
+                      <li key={item.product.id} className="flex items-start gap-4 py-3.5">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-mono text-xs text-muted">{item.product.id}</p>
+                          <p className="mt-1 text-sm font-medium leading-snug text-ink">
+                            {item.product.name}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            onClick={() => changeQuantity(item.product.id, -1)}
+                            className="rounded-md border border-line p-1.5 text-muted transition-colors hover:border-navy-400 hover:text-ink"
+                            aria-label={`Quitar una unidad de ${item.product.name}`}
+                          >
+                            <Minus className="h-3.5 w-3.5" />
+                          </button>
+                          <span className="w-9 text-center text-sm font-semibold">{item.quantity}</span>
+                          <button
+                            onClick={() => changeQuantity(item.product.id, 1)}
+                            className="rounded-md border border-line p-1.5 text-muted transition-colors hover:border-navy-400 hover:text-ink"
+                            aria-label={`Agregar una unidad de ${item.product.name}`}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => removeFromQuote(item.product.id)}
+                          className="shrink-0 rounded-md p-1.5 text-rose-700 transition-colors hover:bg-rose-600/10 dark:text-rose-300"
+                          aria-label={`Eliminar ${item.product.name} de la solicitud`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <aside className="panel h-fit p-5">
+                <h2 className="font-bold tracking-tight text-ink">Enviar solicitud</h2>
+                <div className="mt-4 space-y-3.5">
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted">
+                      Nombre (opcional)
+                    </label>
+                    <input
+                      value={customerName}
+                      onChange={e => setCustomerName(e.target.value)}
+                      className="field"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted">
+                      Comentario (opcional)
+                    </label>
+                    <textarea
+                      value={quoteNote}
+                      onChange={e => setQuoteNote(e.target.value)}
+                      className="field min-h-[80px]"
+                    />
+                  </div>
+                  {phones.length > 1 && (
+                    <div>
+                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted">
+                        Enviar a
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {phones.map((option, index) => (
+                          <button
+                            key={option.phone}
+                            type="button"
+                            onClick={() => setPhoneIndex(index)}
+                            className={groupChip(index === phoneIndex)}
+                          >
+                            {option.label}
+                            {option.phone ? ` · ${option.phone}` : ''}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    onClick={sendQuote}
+                    disabled={quoteItems.length === 0}
+                    className={`btn-accent w-full pt-3 pb-3 ${
+                      quoteItems.length === 0
+                        ? 'cursor-not-allowed border border-line bg-sunken text-muted'
+                        : `${accent.bg} ${accent.bgHover} ${accent.onAccent}`
+                    }`}
+                  >
+                    <Send className="h-4 w-4" /> Solicitar por WhatsApp
+                  </button>
+                  <p className="text-center text-xs leading-relaxed text-muted">
+                    La solicitud se envía sin precios. Un asesor le responderá con la cotización.
+                  </p>
+                </div>
+              </aside>
+            </section>
+          )}
+        </div>
       </main>
 
       {/* ===== Pie de página ===== */}
-      <footer className="max-w-7xl mx-auto px-4 sm:px-6 mt-10">
-        <div className="glass rounded-2xl border border-slate-700/50 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${accent.gradient} flex items-center justify-center`}>
-              <LogoIcon className="w-5 h-5 text-slate-950" />
+      <footer className="mt-16 border-t border-navy-800 bg-navy-950">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+          <div className="grid gap-8 md:grid-cols-3">
+            <div>
+              <div className="flex items-center gap-3">
+                <span
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${accent.gradient}`}
+                >
+                  <LogoIcon className="h-5 w-5 text-white" />
+                </span>
+                <span className="text-sm font-bold tracking-tight text-white">{config?.name}</span>
+              </div>
+              <p className="mt-4 text-sm leading-relaxed text-navy-300">{config?.slogan}</p>
             </div>
-            <p className="text-sm text-slate-400">{config?.footerText}</p>
-          </div>
-          <div className="flex flex-wrap gap-4 text-sm text-slate-400">
-            {config?.contactPhone && (
-              <a
-                href={`tel:${config.contactPhone.replace(/[^\d+]/g, '')}`}
-                className="inline-flex items-center gap-2 hover:text-white transition-colors"
-              >
-                <Phone className="w-4 h-4" />
-                {config.contactPhone}
-              </a>
-            )}
-            {phones.map(option => (
-              <a
-                key={option.phone}
-                href={`https://wa.me/${whatsappNumber(option.phone)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 hover:text-white transition-colors"
-              >
-                <MessageCircle className="w-4 h-4" />
-                {option.phone}
-                <span className="text-slate-500">{option.label}</span>
-              </a>
-            ))}
-            {config?.contactEmail && (
-              <a
-                href={`mailto:${config.contactEmail}`}
-                className="inline-flex items-center gap-2 hover:text-white transition-colors"
-              >
-                <Mail className="w-4 h-4" /> {config.contactEmail}
-              </a>
-            )}
-            {config?.address && (
-              <span className="inline-flex items-center gap-2">
-                <MapPin className="w-4 h-4" /> {config.address}
-              </span>
-            )}
+
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gold-400">Contacto</p>
+              <ul className="mt-3 space-y-2.5 text-sm text-navy-200">
+                {config?.contactPhone && (
+                  <li>
+                    <a
+                      href={`tel:${config.contactPhone.replace(/[^\d+]/g, '')}`}
+                      className="inline-flex items-center gap-2 transition-colors hover:text-white"
+                    >
+                      <Phone className="h-4 w-4 text-navy-400" />
+                      {config.contactPhone}
+                    </a>
+                  </li>
+                )}
+                {phones.map(option => (
+                  <li key={option.phone}>
+                    <a
+                      href={`https://wa.me/${whatsappNumber(option.phone)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 transition-colors hover:text-white"
+                    >
+                      <MessageCircle className="h-4 w-4 text-navy-400" />
+                      {option.phone} · {option.label}
+                    </a>
+                  </li>
+                ))}
+                {config?.contactEmail && (
+                  <li>
+                    <a
+                      href={`mailto:${config.contactEmail}`}
+                      className="inline-flex items-center gap-2 transition-colors hover:text-white"
+                    >
+                      <Mail className="h-4 w-4 text-navy-400" />
+                      {config.contactEmail}
+                    </a>
+                  </li>
+                )}
+                {config?.address && (
+                  <li className="flex items-start gap-2">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-navy-400" />
+                    <span>{config.address}</span>
+                  </li>
+                )}
+              </ul>
+            </div>
+
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gold-400">
+                Cotizaciones
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-navy-200">
+                Los precios no se publican en el catálogo. Arme su lista de referencias y solicítela:
+                recibirá la cotización por WhatsApp o correo.
+              </p>
+              <p className="mt-4 text-xs text-navy-400">{config?.footerText}</p>
+            </div>
           </div>
         </div>
       </footer>
@@ -740,18 +891,18 @@ export default function App() {
       {/* ===== Notificación ===== */}
       {notification && (
         <div
-          className={`fixed bottom-5 right-5 z-[60] toast-enter flex items-center gap-3 px-4 py-3 rounded-xl border text-sm max-w-sm ${
+          className={`toast-enter fixed bottom-5 right-5 z-[60] flex max-w-sm items-start gap-3 rounded-xl border bg-elevated px-4 py-3 text-sm shadow-lift ${
             notification.type === 'error'
-              ? 'bg-rose-500/15 border-rose-500/40 text-rose-200'
+              ? 'border-rose-600/40 text-rose-700 dark:text-rose-300'
               : notification.type === 'info'
-                ? 'bg-slate-800/90 border-slate-600/60 text-slate-200'
-                : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200'
+                ? 'border-line text-ink'
+                : 'border-emerald-600/40 text-emerald-700 dark:text-emerald-300'
           }`}
         >
           {notification.type === 'error' ? (
-            <AlertCircle className="w-4 h-4 shrink-0" />
+            <AlertCircle className="h-4 w-4 shrink-0" />
           ) : (
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
           )}
           <span>{notification.message}</span>
         </div>

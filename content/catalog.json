@@ -3,7 +3,7 @@
     "name": "Forjados Del Caribe SRL",
     "slogan": "Suministros Ferreteros y Equipamiento Pesado",
     "logoType": "wrench",
-    "accentColor": "amber",
+    "accentColor": "gold",
     "footerText": "© 2026 Forjados Del Caribe SRL.",
     "contactPhone": "+18092272492",
     "contactPhones": [
@@ -11,6 +11,6 @@
     ],
     "contactEmail": "forjadosventas06@gmail.com",
     "address": "Calle San Juan de La Maguana #122, Cristo Rey, Santo Domingo. DN",
-    "defaultTheme": "dark"
+    "defaultTheme": "light"
   }
 }

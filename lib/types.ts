@@ -3,7 +3,9 @@
 // La fuente de verdad es public/catalog.json (ver scripts/import-inventory.mjs).
 
 export type LogoType = 'wrench' | 'hammer' | 'shield' | 'cpu' | 'hardhat' | 'box';
-export type AccentColor = 'amber' | 'emerald' | 'blue' | 'violet' | 'rose';
+// Acentos corporativos: el dorado apagado es el de la marca y el azul marino
+// actúa como estructura (cabecera, pie, filtros activos).
+export type AccentColor = 'gold' | 'navy' | 'emerald';
 export type Theme = 'dark' | 'light';
 export type TabId = 'catalog' | 'quote';
 
@@ -53,6 +55,8 @@ export interface Notification {
 export interface AccentStyles {
   bg: string;
   bgHover: string;
+  // Texto legible sobre "bg"
+  onAccent: string;
   text: string;
   softBg: string;
   border: string;

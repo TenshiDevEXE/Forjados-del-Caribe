@@ -15,7 +15,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CATALOG_PATH = join(ROOT, 'public', 'catalog.json');
 
 const LOGO_TYPES = ['wrench', 'hammer', 'shield', 'cpu', 'hardhat', 'box'];
-const ACCENT_COLORS = ['amber', 'emerald', 'blue', 'violet', 'rose'];
+const ACCENT_COLORS = ['gold', 'navy', 'emerald'];
 const THEMES = ['dark', 'light'];
 
 // Claves prohibidas, normalizadas (minúsculas y sin separadores).

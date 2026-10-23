@@ -10,7 +10,8 @@ Catálogo de productos **100 % estático**, publicado en GitHub Pages. El visita
 - Navegación en dos niveles: **grupos de categorías** y, dentro de cada grupo, sus categorías
 - Miles de productos con carga por tandas (60 por tanda) para que el navegador no se bloquee
 - Solicitud de cotización por WhatsApp (productos + cantidades, sin precios)
-- Modo oscuro/claro (preferencia del visitante, guardada en `localStorage`)
+- Estilo corporativo: paleta azul marino + dorado apagado, tipografía Inter y acento configurable (`gold` | `navy` | `emerald`)
+- Modo oscuro/claro (**claro por defecto**, con conmutador; la preferencia del visitante se guarda en `localStorage`)
 - PWA instalable (el catálogo se guarda en caché y funciona sin conexión)
 - Sin backend, sin base de datos, sin mantenimiento: solo archivos estáticos
 
@@ -39,7 +40,7 @@ Al terminar muestra un resumen (`Productos importados`, `En existencia`, `Catego
     "name": "Forjados Del Caribe SRL",
     "slogan": "Suministros Ferreteros y Equipamiento Pesado",
     "logoType": "wrench",            // wrench | hammer | shield | cpu | hardhat | box
-    "accentColor": "amber",          // amber | emerald | blue | violet | rose
+    "accentColor": "gold",           // gold | navy | emerald
     "footerText": "© 2026 Forjados Del Caribe SRL.",
     "contactPhone": "+18092272492",   // teléfono de la compañía (se muestra en el pie)
     "contactPhones": [               // números de WhatsApp para las solicitudes.
@@ -47,7 +48,7 @@ Al terminar muestra un resumen (`Productos importados`, `En existencia`, `Catego
     ],
     "contactEmail": "forjadosventas06@gmail.com",
     "address": "Calle San Juan de La Maguana #122, Cristo Rey, Santo Domingo. DN",
-    "theme": "dark"                  // dark | light
+    "theme": "light"                 // dark | light (tema inicial)
   },
   "categories": ["HERRAMIENTAS DE MANO", "SOLDADURA"],
   "products": [
@@ -128,7 +129,7 @@ lib/types.ts                 ← tipos del catálogo
 lib/category-groups.ts       ← grupos de categorías para la navegación
 lib/theme.ts                 ← colores de acento e iconos
 App.tsx                      ← catálogo + solicitud de cotización
-components/                  ← UI (modales, miniaturas, toggle de tema)
+components/                  ← UI (modales, conmutador de tema)
 .github/workflows/deploy.yml ← compila y publica en GitHub Pages en cada push a main
 ```
 

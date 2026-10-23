@@ -60,7 +60,7 @@ describe('App', () => {
 
   it('muestra el comercio y los productos del catálogo', async () => {
     render(<App />);
-    expect(await screen.findByText(sample.config.name)).toBeInTheDocument();
+    expect((await screen.findAllByText(sample.config.name)).length).toBeGreaterThan(0);
     expect(screen.getByText(sample.products[0].name)).toBeInTheDocument();
   });
 });

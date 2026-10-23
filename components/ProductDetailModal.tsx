@@ -1,6 +1,5 @@
-import { CheckCircle2, ShoppingCart, Wrench } from 'lucide-react';
+import { CheckCircle2, Clock, ShoppingCart, Wrench } from 'lucide-react';
 import ModalShell from './ModalShell';
-import ProductThumb from './ProductThumb';
 import type { AccentStyles, Product } from '../lib/types';
 
 interface ProductDetailModalProps {
@@ -24,65 +23,66 @@ export default function ProductDetailModal({
     <ModalShell
       title={product.name}
       subtitle={product.category}
-      icon={<Wrench className="w-5 h-5" />}
+      icon={<Wrench className="h-5 w-5" />}
       accent={accent}
       onClose={onClose}
       maxWidth="max-w-3xl"
     >
-      <div className="grid md:grid-cols-2 gap-6">
-        <ProductThumb
-          src=""
-          alt={product.name}
-          className="w-full h-64 rounded-xl border border-slate-700/50"
-          iconClassName="w-16 h-16"
-        />
-
-        <div className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${accent.softBg} ${accent.text}`}>
-              {product.category}
-            </span>
+      <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_240px]">
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center gap-2">
             <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
-                available ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold ${
+                available
+                  ? 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-300'
+                  : 'bg-sunken text-muted'
               }`}
             >
-              <CheckCircle2 className="w-3 h-3" />
-              {available ? 'Disponible' : 'A pedido'}
+              {available ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
+              {available ? 'En existencia' : 'Bajo pedido'}
+            </span>
+            <span className={`${accent.softBg} ${accent.text} rounded-md px-2.5 py-1 text-xs font-semibold`}>
+              {product.category}
             </span>
           </div>
 
-          <dl className="grid grid-cols-2 gap-3 text-sm">
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-4 border-y border-line py-4 text-sm">
             <div>
-              <dt className="text-xs uppercase tracking-wide text-slate-500">Código</dt>
-              <dd className="font-mono text-slate-100">{product.id}</dd>
+              <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted">Código</dt>
+              <dd className="mt-1 font-mono text-ink">{product.id}</dd>
+            </div>
+            <div>
+              <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted">Existencia</dt>
+              <dd className="mt-1 text-ink">{available ? `${product.stock} unidades` : 'Bajo pedido'}</dd>
             </div>
             {product.model && (
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-slate-500">Modelo</dt>
-                <dd className="text-slate-100">{product.model}</dd>
+              <div className="col-span-2">
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted">Modelo</dt>
+                <dd className="mt-1 text-ink">{product.model}</dd>
               </div>
             )}
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-slate-500">Existencia</dt>
-              <dd className="text-slate-100">{available ? product.stock : 'Bajo pedido'}</dd>
-            </div>
           </dl>
 
-          <p className="text-xs text-slate-500">
-            Los precios no se publican en el catálogo: solicítalos y un asesor te responderá.
+          <p className="text-xs leading-relaxed text-muted">
+            Los precios no se publican en el catálogo: agregue la referencia a su solicitud y un asesor
+            le responderá con la cotización.
           </p>
-        </div>
-      </div>
 
-      <div className="mt-6">
-        <button
-          onClick={() => onAddToQuote(product)}
-          className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold ${accent.bg} ${accent.bgHover} text-slate-950 transition-colors`}
-        >
-          <ShoppingCart className="w-4 h-4" />
-          {inQuote ? 'Ya está en la solicitud' : 'Agregar a la solicitud'}
-        </button>
+          <button
+            onClick={() => onAddToQuote(product)}
+            className={`btn-accent ${accent.bg} ${accent.bgHover} ${accent.onAccent}`}
+          >
+            <ShoppingCart className="h-4 w-4" />
+            {inQuote ? 'Agregar otra unidad' : 'Agregar a la solicitud'}
+          </button>
+        </div>
+
+        <aside className="h-fit rounded-lg border border-line bg-sunken p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Referencia</p>
+          <p className="mt-1.5 break-all font-mono text-xl font-semibold text-ink">{product.id}</p>
+          <p className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-muted">Línea de producto</p>
+          <p className="mt-1.5 text-sm text-ink">{product.category}</p>
+        </aside>
       </div>
     </ModalShell>
   );
