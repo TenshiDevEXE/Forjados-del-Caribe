@@ -1,0 +1,6 @@
+# Normaliza los finales de línea a LF en el repositorio.
+# Sin esto, core.autocrlf=true en Windows puede guardar CRLF y romper scripts
+# de shell o configuraciones en Linux/macOS.
+* text=auto
+*.sh   text eol=lf
+*.conf text eol=lf
