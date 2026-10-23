@@ -28,8 +28,8 @@ Todo el contenido vive en **[content/catalog.json](content/catalog.json)**. Pued
     "contactPhones": [               // números de WhatsApp para las solicitudes.
       { "label": "Ventas", "phone": "+18496263154" }   // el PRIMERO es el principal
     ],
-    "contactEmail": "contacto@ferrotech.com",
-    "address": "Av. Industrial N-4500",
+    "contactEmail": "forjadosventas06@gmail.com",
+    "address": "Calle San Juan de La Maguana #122, Cristo Rey, Santo Domingo. DN",
     "defaultTheme": "dark"           // dark | light
   },
   "categories": [

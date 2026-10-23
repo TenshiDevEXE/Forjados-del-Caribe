@@ -17,8 +17,8 @@ export const CATALOG_CONFIG: StoreConfig = {
       "phone": "+18496263154"
     }
   ],
-  "contactEmail": "contacto@ferrotech.com",
-  "address": "Av. Industrial N-4500",
+  "contactEmail": "forjadosventas06@gmail.com",
+  "address": "Calle San Juan de La Maguana #122, Cristo Rey, Santo Domingo. DN",
   "theme": "dark"
 };
 

@@ -579,9 +579,12 @@ export default function App() {
               </a>
             ))}
             {config.contactEmail && (
-              <span className="inline-flex items-center gap-2">
+              <a
+                href={`mailto:${config.contactEmail}`}
+                className="inline-flex items-center gap-2 hover:text-white transition-colors"
+              >
                 <Mail className="w-4 h-4" /> {config.contactEmail}
-              </span>
+              </a>
             )}
             {config.address && (
               <span className="inline-flex items-center gap-2">
