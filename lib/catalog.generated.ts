@@ -5,11 +5,12 @@
 import type { Category, Product, StoreConfig, Subcategory } from './types';
 
 export const CATALOG_CONFIG: StoreConfig = {
-  "name": "FERROTECH INDUSTRIAL",
+  "name": "Forjados Del Caribe SRL",
   "slogan": "Suministros Ferreteros y Equipamiento Pesado",
   "logoType": "wrench",
   "accentColor": "amber",
-  "footerText": "© 2026 FERROTECH INDUSTRIAL.",
+  "footerText": "© 2026 Forjados Del Caribe SRL.",
+  "contactPhone": "+18092272492",
   "contactPhones": [
     {
       "label": "Ventas",

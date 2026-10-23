@@ -34,7 +34,7 @@ const FORBIDDEN_KEYS = new Set(
 
 // Campos aceptados por cada entidad. Cualquier otro campo es un error.
 const SCHEMAS = {
-  config: ['name', 'slogan', 'logoType', 'accentColor', 'footerText', 'contactPhones', 'contactEmail', 'address', 'defaultTheme'],
+  config: ['name', 'slogan', 'logoType', 'accentColor', 'footerText', 'contactPhone', 'contactPhones', 'contactEmail', 'address', 'defaultTheme'],
   contactPhones: ['label', 'phone'],
   categories: ['id', 'name'],
   subcategories: ['id', 'name', 'categoryId'],
@@ -227,6 +227,7 @@ function toConfig(config) {
     logoType: config.logoType ?? 'wrench',
     accentColor: config.accentColor ?? 'amber',
     footerText: (config.footerText ?? '').trim(),
+    contactPhone: (config.contactPhone ?? '').trim(),
     contactPhones: config.contactPhones.map((entry, index) => ({
       label: (entry.label ?? '').trim() || `WhatsApp ${index + 1}`,
       phone: String(entry.phone).trim(),

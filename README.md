@@ -19,11 +19,12 @@ Todo el contenido vive en **[content/catalog.json](content/catalog.json)**. Pued
 ```jsonc
 {
   "config": {
-    "name": "FERROTECH INDUSTRIAL",
+    "name": "Forjados Del Caribe SRL",
     "slogan": "Suministros Ferreteros y Equipamiento Pesado",
     "logoType": "wrench",            // wrench | hammer | shield | cpu | hardhat | box
     "accentColor": "amber",          // amber | emerald | blue | violet | rose
-    "footerText": "© 2026 FERROTECH INDUSTRIAL.",
+    "footerText": "© 2026 Forjados Del Caribe SRL.",
+    "contactPhone": "+18092272492",   // teléfono de la compañía (se muestra en el pie)
     "contactPhones": [               // números de WhatsApp para las solicitudes.
       { "label": "Ventas", "phone": "+18496263154" }   // el PRIMERO es el principal
     ],

@@ -8,6 +8,7 @@ import {
   List,
   Mail,
   MapPin,
+  MessageCircle,
   Minus,
   Package,
   Phone,
@@ -555,6 +556,15 @@ export default function App() {
             <p className="text-sm text-slate-400">{config.footerText}</p>
           </div>
           <div className="flex flex-wrap gap-4 text-sm text-slate-400">
+            {config.contactPhone && (
+              <a
+                href={`tel:${config.contactPhone.replace(/[^\d+]/g, '')}`}
+                className="inline-flex items-center gap-2 hover:text-white transition-colors"
+              >
+                <Phone className="w-4 h-4" />
+                {config.contactPhone}
+              </a>
+            )}
             {phones.map(option => (
               <a
                 key={option.phone}
@@ -563,7 +573,7 @@ export default function App() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 hover:text-white transition-colors"
               >
-                <Phone className="w-4 h-4" />
+                <MessageCircle className="w-4 h-4" />
                 {option.phone}
                 <span className="text-slate-500">{option.label}</span>
               </a>

@@ -40,12 +40,14 @@ export interface ContactPhone {
   phone: string;
 }
 
+// Teléfono de la compañía (contacto general).
 export interface StoreConfig {
   name: string;
   slogan: string;
   logoType: LogoType;
   accentColor: AccentColor;
   footerText: string;
+  contactPhone: string;
   contactPhones: ContactPhone[];
   contactEmail: string;
   address: string;

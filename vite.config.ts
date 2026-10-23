@@ -13,8 +13,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.svg', 'pwa-192x192.svg', 'pwa-512x512.svg'],
       manifest: {
-        name: 'FERROTECH INDUSTRIAL - Catálogo',
-        short_name: 'FERROTECH',
+        name: 'Forjados Del Caribe SRL - Catálogo',
+        short_name: 'Forjados Caribe',
         description: 'Catálogo de suministros ferreteros y equipamiento industrial con solicitud de cotización',
         lang: 'es',
         theme_color: '#0f172a',
