@@ -23,7 +23,7 @@ export default function ProductDetailModal({
   return (
     <ModalShell
       title={product.name}
-      subtitle={`${product.categoryName}${product.subcategoryName ? ` · ${product.subcategoryName}` : ''}`}
+      subtitle={product.category}
       icon={<Wrench className="w-5 h-5" />}
       accent={accent}
       onClose={onClose}
@@ -31,7 +31,7 @@ export default function ProductDetailModal({
     >
       <div className="grid md:grid-cols-2 gap-6">
         <ProductThumb
-          src={product.image}
+          src=""
           alt={product.name}
           className="w-full h-64 rounded-xl border border-slate-700/50"
           iconClassName="w-16 h-16"
@@ -40,7 +40,7 @@ export default function ProductDetailModal({
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${accent.softBg} ${accent.text}`}>
-              {product.categoryName}
+              {product.category}
             </span>
             <span
               className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
@@ -55,20 +55,18 @@ export default function ProductDetailModal({
           <dl className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <dt className="text-xs uppercase tracking-wide text-slate-500">Código</dt>
-              <dd className="font-mono text-slate-100">{product.sku}</dd>
+              <dd className="font-mono text-slate-100">{product.id}</dd>
             </div>
-            {product.brand && (
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-slate-500">Marca</dt>
-                <dd className="text-slate-100">{product.brand}</dd>
-              </div>
-            )}
             {product.model && (
               <div>
                 <dt className="text-xs uppercase tracking-wide text-slate-500">Modelo</dt>
                 <dd className="text-slate-100">{product.model}</dd>
               </div>
             )}
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-slate-500">Existencia</dt>
+              <dd className="text-slate-100">{available ? product.stock : 'Bajo pedido'}</dd>
+            </div>
           </dl>
 
           <p className="text-xs text-slate-500">
@@ -76,13 +74,6 @@ export default function ProductDetailModal({
           </p>
         </div>
       </div>
-
-      {product.description && (
-        <div className="mt-6">
-          <h3 className="text-sm font-semibold text-slate-300 mb-2">Descripción</h3>
-          <p className="text-sm text-slate-400 leading-relaxed">{product.description}</p>
-        </div>
-      )}
 
       <div className="mt-6">
         <button

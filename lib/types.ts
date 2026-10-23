@@ -1,36 +1,19 @@
 /* ==================== Tipos del catálogo estático ==================== */
 // La web es un catálogo: no existen precios en el modelo de datos.
-// Ver content/catalog.json (fuente de verdad) y scripts/build-catalog.mjs.
+// La fuente de verdad es public/catalog.json (ver scripts/import-inventory.mjs).
 
 export type LogoType = 'wrench' | 'hammer' | 'shield' | 'cpu' | 'hardhat' | 'box';
 export type AccentColor = 'amber' | 'emerald' | 'blue' | 'violet' | 'rose';
 export type Theme = 'dark' | 'light';
 export type TabId = 'catalog' | 'quote';
 
-export interface Category {
-  id: string;
-  name: string;
-}
-
-export interface Subcategory {
-  id: string;
-  name: string;
-  categoryId: string;
-}
-
+// Producto del inventario. Las categorías son texto libre (no hay subcategorías).
 export interface Product {
   id: string;
-  sku: string;
   name: string;
-  brand: string;
-  model: string;
-  categoryId: string;
-  subcategoryId: string | null;
-  categoryName: string;
-  subcategoryName: string | null;
+  category: string;
+  model?: string;
   stock: number;
-  description: string;
-  image: string;
 }
 
 // Número de WhatsApp al que se pueden enviar las solicitudes de cotización.
@@ -52,6 +35,13 @@ export interface StoreConfig {
   contactEmail: string;
   address: string;
   theme: Theme;
+}
+
+// Contenido completo de public/catalog.json.
+export interface Catalog {
+  config: StoreConfig;
+  categories: string[];
+  products: Product[];
 }
 
 export interface Notification {

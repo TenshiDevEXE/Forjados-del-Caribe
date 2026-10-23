@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "import": "node scripts/import-inventory.mjs",
     "catalog": "node scripts/build-catalog.mjs",
     "predev": "node scripts/build-catalog.mjs",
     "dev": "vite",

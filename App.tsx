@@ -24,10 +24,13 @@ import ProductThumb from './components/ProductThumb';
 import ProductDetailModal from './components/ProductDetailModal';
 
 import { ACCENT_STYLES, LOGO_ICONS } from './lib/theme';
-import { categories, config, products, subcategories } from './lib/api';
-import type { Notification, Product, QuoteItem, TabId, Theme } from './lib/types';
+import { loadCatalog } from './lib/api';
+import type { Catalog, Notification, Product, QuoteItem, TabId, Theme } from './lib/types';
 
 type ViewMode = 'grid' | 'list';
+
+// Con miles de productos no se renderizan todos de golpe: se muestran por tandas.
+const PAGE_SIZE = 60;
 
 interface TabDef {
   id: TabId;
@@ -49,14 +52,17 @@ function readStoredTheme(): Theme | null {
 }
 
 export default function App() {
-  const [theme, setTheme] = useState<Theme>(() => readStoredTheme() ?? config.theme);
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [theme, setTheme] = useState<Theme>(() => readStoredTheme() ?? 'dark');
   const [notification, setNotification] = useState<Notification | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('catalog');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
   const [customerName, setCustomerName] = useState('');
@@ -65,31 +71,55 @@ export default function App() {
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  const accent = ACCENT_STYLES[config.accentColor];
-  const LogoIcon = LOGO_ICONS[config.logoType];
+  /* ==================== Carga del catálogo ==================== */
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadCatalog(controller.signal)
+      .then(data => {
+        setCatalog(data);
+        // El tema del catálogo solo se aplica si el visitante no eligió uno.
+        setTheme(readStoredTheme() ?? data.config.theme);
+      })
+      .catch(error => {
+        if (!controller.signal.aborted) setLoadError(error.message);
+      });
+    return () => controller.abort();
+  }, []);
+
+  const config = catalog?.config;
+  const categories = catalog?.categories ?? [];
+  const products = catalog?.products ?? [];
+
+  const accent = ACCENT_STYLES[config?.accentColor ?? 'amber'];
+  const LogoIcon = LOGO_ICONS[config?.logoType ?? 'wrench'];
 
   // El primer número de la lista es el principal: se usa por defecto.
-  const phones = config.contactPhones;
+  const phones = config?.contactPhones ?? [];
   const selectedPhone = phones[phoneIndex] ?? phones[0];
 
   /* ==================== Datos derivados ==================== */
 
-  const visibleSubcategories = useMemo(
-    () => (selectedCategory ? subcategories.filter(s => s.categoryId === selectedCategory) : []),
-    [selectedCategory]
-  );
-
   const filteredProducts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return products.filter(product => {
-      if (selectedCategory && product.categoryId !== selectedCategory) return false;
-      if (selectedSubcategory && product.subcategoryId !== selectedSubcategory) return false;
+      if (selectedCategory && product.category !== selectedCategory) return false;
       if (!term) return true;
-      return [product.name, product.sku, product.brand, product.model].some(field =>
+      return [product.name, product.id, product.model ?? ''].some(field =>
         field.toLowerCase().includes(term)
       );
     });
-  }, [searchTerm, selectedCategory, selectedSubcategory]);
+  }, [products, searchTerm, selectedCategory]);
+
+  // Al cambiar los filtros se vuelve a empezar por el primer producto.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [searchTerm, selectedCategory]);
+
+  const visibleProducts = useMemo(
+    () => filteredProducts.slice(0, visibleCount),
+    [filteredProducts, visibleCount]
+  );
 
   const quoteCount = quoteItems.reduce((total, item) => total + item.quantity, 0);
 
@@ -159,10 +189,10 @@ export default function App() {
     }
     // La solicitud nunca incluye precios
     const lines = quoteItems.map(
-      item => `• ${item.quantity} x ${item.product.name}${item.product.sku ? ` (SKU ${item.product.sku})` : ''}`
+      item => `• ${item.quantity} x ${item.product.name} (Código ${item.product.id})`
     );
     const message = [
-      `*Solicitud de cotización* — ${config.name}`,
+      `*Solicitud de cotización* — ${config?.name ?? 'Catálogo'}`,
       '',
       ...lines,
       '',
@@ -184,7 +214,28 @@ export default function App() {
     { id: 'quote', label: 'Solicitud', icon: ClipboardList, badge: quoteCount },
   ];
 
-  const selectedCategoryName = categories.find(c => c.id === selectedCategory)?.name;
+  /* ==================== Carga y error ==================== */
+
+  if (!catalog) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          {loadError ? (
+            <>
+              <AlertCircle className="w-12 h-12 mx-auto mb-3 text-rose-400" />
+              <h1 className="font-bold text-white mb-1">No se pudo cargar el catálogo</h1>
+              <p className="text-sm text-slate-400">{loadError}</p>
+            </>
+          ) : (
+            <>
+              <Package className="w-12 h-12 mx-auto mb-3 text-slate-500 animate-pulse" />
+              <p className="text-sm text-slate-400">Cargando catálogo…</p>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   /* ==================== Render ==================== */
 
@@ -199,8 +250,8 @@ export default function App() {
                 <LogoIcon className="w-6 h-6 text-slate-950" />
               </div>
               <div className="min-w-0">
-                <h1 className="font-bold text-white leading-tight truncate">{config.name}</h1>
-                <p className="text-xs text-slate-400 truncate">{config.slogan}</p>
+                <h1 className="font-bold text-white leading-tight truncate">{config?.name}</h1>
+                <p className="text-xs text-slate-400 truncate">{config?.slogan}</p>
               </div>
             </div>
 
@@ -242,7 +293,7 @@ export default function App() {
                 <input
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  placeholder="Buscar por nombre, marca o código…"
+                  placeholder="Buscar por nombre, código o modelo…"
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl glass text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
                 />
               </div>
@@ -266,10 +317,7 @@ export default function App() {
 
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => {
-                  setSelectedCategory(null);
-                  setSelectedSubcategory(null);
-                }}
+                onClick={() => setSelectedCategory(null)}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   !selectedCategory ? `${accent.bg} text-slate-950` : 'glass text-slate-300 hover:text-white'
                 }`}
@@ -278,43 +326,20 @@ export default function App() {
               </button>
               {categories.map(category => (
                 <button
-                  key={category.id}
-                  onClick={() => {
-                    setSelectedCategory(category.id);
-                    setSelectedSubcategory(null);
-                  }}
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    selectedCategory === category.id ? `${accent.bg} text-slate-950` : 'glass text-slate-300 hover:text-white'
+                    selectedCategory === category ? `${accent.bg} text-slate-950` : 'glass text-slate-300 hover:text-white'
                   }`}
                 >
-                  {category.name}
+                  {category}
                 </button>
               ))}
             </div>
 
-            {visibleSubcategories.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {visibleSubcategories.map(subcategory => (
-                  <button
-                    key={subcategory.id}
-                    onClick={() =>
-                      setSelectedSubcategory(prev => (prev === subcategory.id ? null : subcategory.id))
-                    }
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                      selectedSubcategory === subcategory.id
-                        ? `${accent.softBg} ${accent.text} ${accent.border}`
-                        : 'border-slate-700/50 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {subcategory.name}
-                  </button>
-                ))}
-              </div>
-            )}
-
             <p className="text-xs text-slate-500">
               {filteredProducts.length} producto{filteredProducts.length === 1 ? '' : 's'}
-              {selectedCategoryName ? ` en ${selectedCategoryName}` : ''}
+              {selectedCategory ? ` en ${selectedCategory}` : ''}
             </p>
 
             {filteredProducts.length === 0 ? (
@@ -324,56 +349,70 @@ export default function App() {
               </div>
             ) : viewMode === 'grid' ? (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredProducts.map(product => (
-                  <article
-                    key={product.id}
-                    className="glass rounded-2xl border border-slate-700/50 overflow-hidden card-hover flex flex-col"
-                  >
-                    <div className="relative img-zoom">
-                      <ProductThumb
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-44"
-                        iconClassName="w-14 h-14"
-                      />
-                      <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-950/70 text-slate-200 backdrop-blur">
-                        {product.categoryName}
-                      </span>
-                    </div>
-                    <div className="p-4 flex flex-col flex-1">
-                      <h3 className="font-semibold text-white leading-snug">{product.name}</h3>
-                      <p className="text-xs text-slate-400 mt-1">
-                        {[product.brand, product.model].filter(Boolean).join(' · ') || 'Sin marca'}
-                      </p>
-                      <p className="text-xs text-slate-500 font-mono mt-1">{product.sku}</p>
-                      <div className="mt-auto pt-4 flex gap-2">
-                        <button
-                          onClick={() => setSelectedProduct(product)}
-                          className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl glass text-sm text-slate-200 hover:text-white transition-colors"
-                        >
-                          <Eye className="w-4 h-4" /> Detalle
-                        </button>
-                        <button
-                          onClick={() => addToQuote(product)}
-                          className={`px-3 py-2 rounded-xl ${accent.bg} ${accent.bgHover} text-slate-950 transition-colors`}
-                          aria-label="Agregar a la solicitud"
-                        >
-                          <ShoppingCart className="w-4 h-4" />
-                        </button>
+                {visibleProducts.map(product => {
+                  const available = product.stock > 0;
+                  return (
+                    <article
+                      key={product.id}
+                      className="glass rounded-2xl border border-slate-700/50 overflow-hidden card-hover flex flex-col"
+                    >
+                      <div className="relative img-zoom">
+                        <ProductThumb
+                          src=""
+                          alt={product.name}
+                          className="w-full h-32"
+                          iconClassName="w-12 h-12"
+                        />
+                        <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-950/70 text-slate-200 backdrop-blur">
+                          {product.category}
+                        </span>
                       </div>
-                    </div>
-                  </article>
-                ))}
+                      <div className="p-4 flex flex-col flex-1">
+                        <h3 className="font-semibold text-white leading-snug">{product.name}</h3>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              available
+                                ? 'bg-emerald-500/15 text-emerald-400'
+                                : 'bg-slate-600/20 text-slate-400'
+                            }`}
+                          >
+                            {available ? 'Disponible' : 'A pedido'}
+                          </span>
+                          <span className="text-xs text-slate-500 font-mono">{product.id}</span>
+                        </div>
+                        {product.model && (
+                          <p className="text-xs text-slate-400 mt-1">Modelo {product.model}</p>
+                        )}
+                        <div className="mt-auto pt-4 flex gap-2">
+                          <button
+                            onClick={() => setSelectedProduct(product)}
+                            className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl glass text-sm text-slate-200 hover:text-white transition-colors"
+                          >
+                            <Eye className="w-4 h-4" /> Detalle
+                          </button>
+                          <button
+                            onClick={() => addToQuote(product)}
+                            className={`px-3 py-2 rounded-xl ${accent.bg} ${accent.bgHover} text-slate-950 transition-colors`}
+                            aria-label="Agregar a la solicitud"
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredProducts.map(product => (
+                {visibleProducts.map(product => (
                   <div
                     key={product.id}
                     className="glass rounded-xl border border-slate-700/50 p-3 flex items-center gap-4"
                   >
                     <ProductThumb
-                      src={product.image}
+                      src=""
                       alt={product.name}
                       className="w-14 h-14 rounded-lg shrink-0"
                       iconClassName="w-6 h-6"
@@ -381,10 +420,10 @@ export default function App() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-white truncate">{product.name}</p>
                       <p className="text-xs text-slate-400 truncate">
-                        {[product.brand, product.model, product.categoryName].filter(Boolean).join(' · ')}
+                        {[product.category, product.model && `Modelo ${product.model}`].filter(Boolean).join(' · ')}
                       </p>
                     </div>
-                    <span className="hidden sm:block text-xs font-mono text-slate-500">{product.sku}</span>
+                    <span className="hidden sm:block text-xs font-mono text-slate-500">{product.id}</span>
                     <button
                       onClick={() => setSelectedProduct(product)}
                       className="p-2 rounded-lg glass text-slate-300 hover:text-white transition-colors"
@@ -401,6 +440,17 @@ export default function App() {
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {visibleProducts.length < filteredProducts.length && (
+              <div className="pt-2 text-center">
+                <button
+                  onClick={() => setVisibleCount(count => count + PAGE_SIZE)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold glass text-slate-200 hover:text-white transition-colors"
+                >
+                  Cargar más ({filteredProducts.length - visibleProducts.length} restantes)
+                </button>
               </div>
             )}
           </section>
@@ -440,14 +490,14 @@ export default function App() {
                   {quoteItems.map(item => (
                     <li key={item.product.id} className="flex items-center gap-4 py-3">
                       <ProductThumb
-                        src={item.product.image}
+                        src=""
                         alt={item.product.name}
                         className="w-14 h-14 rounded-lg shrink-0"
                         iconClassName="w-6 h-6"
                       />
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-white truncate">{item.product.name}</p>
-                        <p className="text-xs text-slate-500 font-mono">{item.product.sku}</p>
+                        <p className="text-xs text-slate-500 font-mono">{item.product.id}</p>
                       </div>
                       <div className="flex items-center gap-1">
                         <button
@@ -553,10 +603,10 @@ export default function App() {
             <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${accent.gradient} flex items-center justify-center`}>
               <LogoIcon className="w-5 h-5 text-slate-950" />
             </div>
-            <p className="text-sm text-slate-400">{config.footerText}</p>
+            <p className="text-sm text-slate-400">{config?.footerText}</p>
           </div>
           <div className="flex flex-wrap gap-4 text-sm text-slate-400">
-            {config.contactPhone && (
+            {config?.contactPhone && (
               <a
                 href={`tel:${config.contactPhone.replace(/[^\d+]/g, '')}`}
                 className="inline-flex items-center gap-2 hover:text-white transition-colors"
@@ -578,7 +628,7 @@ export default function App() {
                 <span className="text-slate-500">{option.label}</span>
               </a>
             ))}
-            {config.contactEmail && (
+            {config?.contactEmail && (
               <a
                 href={`mailto:${config.contactEmail}`}
                 className="inline-flex items-center gap-2 hover:text-white transition-colors"
@@ -586,7 +636,7 @@ export default function App() {
                 <Mail className="w-4 h-4" /> {config.contactEmail}
               </a>
             )}
-            {config.address && (
+            {config?.address && (
               <span className="inline-flex items-center gap-2">
                 <MapPin className="w-4 h-4" /> {config.address}
               </span>

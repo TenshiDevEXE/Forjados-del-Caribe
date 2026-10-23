@@ -45,7 +45,7 @@ export default defineConfig({
         categories: ['business', 'industrial', 'shopping']
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        globPatterns: ['**/*.{js,css,html,json,ico,png,svg,woff,woff2}'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/images\.pexels\.com\/.*/i,

@@ -13,8 +13,11 @@ dist-ssr
 dev-dist
 *.local
 
-# lib/catalog.generated.ts se genera desde content/catalog.json pero SÍ se versiona,
-# para que `npm run dev` y los tests funcionen tras un clon limpio.
+# public/catalog.json se genera con `npm run import` desde el inventario (XLS/CSV)
+# y SÍ se versiona: es la fuente de la web publicada.
+# El inventario de origen (con precios) nunca debe entrar al repositorio.
+*.xls
+*.xlsx
 
 # Restos de la antigua arquitectura con backend (incluye precios): nunca al repositorio.
 server/data/

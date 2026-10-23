@@ -1,20 +1,36 @@
-# Ferrotech Industrial — Catálogo web
+# Forjados Del Caribe SRL — Catálogo web
 
 Catálogo de productos **100 % estático**, publicado en GitHub Pages. El visitante explora el catálogo, arma una lista y la envía por WhatsApp para pedir cotización.
 
-> **Los precios no existen en el proyecto.** No hay campo de precio en el modelo de datos ni en el catálogo, así que es imposible que se filtren. El generador del build **falla** si alguien añade un campo que suene a precio.
+> **Los precios no existen en el proyecto.** No hay campo de precio en el modelo de datos ni en el catálogo, así que es imposible que se filtren. Tanto el importador como el validador del build **abortan** si aparece un campo que suene a precio.
 
 ## Características
 
-- Catálogo con búsqueda, filtros por categoría/subcategoría y vista cuadrícula/lista
+- Catálogo con búsqueda (nombre, código o modelo), filtro por categoría y vista cuadrícula/lista
+- Miles de productos con carga por tandas (60 por tanda) para que el navegador no se bloquee
 - Solicitud de cotización por WhatsApp (productos + cantidades, sin precios)
 - Modo oscuro/claro (preferencia del visitante, guardada en `localStorage`)
-- PWA instalable
+- PWA instalable (el catálogo se guarda en caché y funciona sin conexión)
 - Sin backend, sin base de datos, sin mantenimiento: solo archivos estáticos
 
-## Cómo editar el catálogo
+## Cómo actualizar el inventario
 
-Todo el contenido vive en **[content/catalog.json](content/catalog.json)**. Puedes editarlo directamente desde la web de GitHub (botón ✏️) y guardar el cambio: la web se reconstruye y publica sola.
+El catálogo se genera a partir del inventario exportado del sistema (XLS, XLSX o CSV con las columnas `Código`, `Descripción`, `Categoría`, `Ref. Proveedor` y `Existencia`).
+
+```bash
+npm run import -- "E:\data\Archivo.XLS"
+```
+
+El importador:
+
+- **descarta por diseño** todas las columnas de precio;
+- conserva la `config` (nombre, teléfonos, tema) del catálogo actual;
+- deduplica códigos y descarta filas vacías;
+- escribe **`public/catalog.json`**, que es lo que se publica.
+
+Al terminar muestra un resumen (`Productos importados`, `En existencia`, `Categorías`, `Precios importados: 0`). Después, subir el cambio a `main` publica la web actualizada.
+
+### Formato de `public/catalog.json`
 
 ```jsonc
 {
@@ -30,36 +46,27 @@ Todo el contenido vive en **[content/catalog.json](content/catalog.json)**. Pued
     ],
     "contactEmail": "forjadosventas06@gmail.com",
     "address": "Calle San Juan de La Maguana #122, Cristo Rey, Santo Domingo. DN",
-    "defaultTheme": "dark"           // dark | light
+    "theme": "dark"                  // dark | light
   },
-  "categories": [
-    { "id": "cat-1", "name": "Herramientas Manuales" }
-  ],
-  "subcategories": [
-    { "id": "sub-1", "name": "Destornilladores", "categoryId": "cat-1" }
-  ],
+  "categories": ["HERRAMIENTAS DE MANO", "SOLDADURA"],
   "products": [
     {
-      "id": "prod-1",
-      "sku": "HM-001",
-      "name": "Destornillador Phillips 6x100mm",
-      "brand": "Stanley",
-      "model": "PH-6-100",
-      "categoryId": "cat-1",
-      "subcategoryId": "sub-1",       // o null
-      "stock": 150,                   // > 0 → "Disponible"; 0 → "A pedido"
-      "description": "Punta magnética, mango ergonómico.",
-      "image": ""                     // opcional: URL de la foto
+      "id": "12345",                 // código del inventario (único)
+      "name": "Disco de corte 7\" x 1/8\"",
+      "category": "ABRASIVOS",       // debe existir en "categories"
+      "model": "DW-7018",            // opcional
+      "stock": 150                   // > 0 → "Disponible"; 0 → "A pedido"
     }
   ]
 }
 ```
 
+El archivo `content/catalog.json` contiene solo la `config` inicial (semilla de nombre, teléfonos y tema) que usa el importador la primera vez.
+
 Reglas que valida el build (si algo falla, no se publica):
 
-- `id` únicos en categorías, subcategorías y productos; `sku` único en productos
-- `categoryId` de cada producto y de cada subcategoría debe existir
-- `subcategoryId` debe existir y pertenecer a la categoría indicada
+- `id` únicos en productos y nombres de categoría únicos
+- la `category` de cada producto debe estar declarada en `categories`
 - `contactPhones` debe tener **al menos un número**; el primero es el principal
 - **Ningún campo de precio** (`price`, `precio`, `sale_price`, `purchase_price`, `cost`…) ni campos desconocidos
 
@@ -82,11 +89,10 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-`npm run dev`, `npm run build` y `npm test` regeneran el catálogo automáticamente desde `content/catalog.json`.
-
 | Comando | Qué hace |
 | --- | --- |
-| `npm run catalog` | Regenera `lib/catalog.generated.ts` y valida el catálogo |
+| `npm run import -- <archivo>` | Regenera `public/catalog.json` desde el inventario (XLS/XLSX/CSV) |
+| `npm run catalog` | Valida `public/catalog.json` (estructura y ausencia de precios) |
 | `npm run dev` | Servidor de desarrollo |
 | `npm run build` | Valida, comprueba tipos y compila en `dist/` |
 | `npm run preview` | Sirve el contenido de `dist/` en local |
@@ -95,18 +101,19 @@ npm run dev          # http://localhost:5173
 ## Arquitectura
 
 ```
-content/catalog.json          ← fuente de verdad (lo único que editas)
-scripts/build-catalog.mjs     ← valida y genera los datos del bundle
-lib/catalog.generated.ts      ← datos generados (no editar a mano)
-lib/api.ts                    ← punto único de acceso a los datos
-lib/types.ts                  ← tipos del catálogo
-lib/theme.ts                  ← colores de acento e iconos
-App.tsx                       ← catálogo + solicitud de cotización
-components/                   ← UI (modales, miniaturas, toggle de tema)
-.github/workflows/deploy.yml  ← compila y publica en GitHub Pages en cada push a main
+E:\data\Archivo.XLS          ← inventario del sistema (con precios; nunca al repositorio)
+scripts/import-inventory.mjs ← lo convierte en catálogo y descarta los precios
+public/catalog.json          ← catálogo publicado (miles de productos)
+scripts/build-catalog.mjs    ← valida el catálogo; aborta el build si hay precios
+lib/api.ts                   ← carga el catálogo con fetch en tiempo de ejecución
+lib/types.ts                 ← tipos del catálogo
+lib/theme.ts                 ← colores de acento e iconos
+App.tsx                      ← catálogo + solicitud de cotización
+components/                  ← UI (modales, miniaturas, toggle de tema)
+.github/workflows/deploy.yml ← compila y publica en GitHub Pages en cada push a main
 ```
 
-No hay backend, ni API REST, ni archivos JSON de base de datos: el catálogo se compila dentro del bundle.
+No hay backend ni base de datos persistente: el catálogo es un único archivo JSON que la web descarga al abrirse.
 
 ## Publicación en GitHub Pages
 
@@ -124,17 +131,17 @@ Para usar un dominio como `forjadosdelcaribesrl.com`:
 2. En tu proveedor de DNS, apunta el dominio a GitHub Pages (registros `A` a las IP de Pages o `CNAME` a `USUARIO.github.io`).
 3. En **Settings → Pages → Custom domain** indica el dominio y activa *Enforce HTTPS*.
 
-> DuckDNS no sirve para esto: GitHub Pages necesita registros `CNAME`/`TXT` que DuckDNS no permite.
+> **Importante:** el repositorio es público, así que `public/catalog.json` también lo es. Nunca debe contener precios: por eso el importador los descarta antes de escribir.
 
 ## Privacidad de precios
 
-- No existe ningún campo de precio en `content/catalog.json` ni en los tipos.
-- `scripts/build-catalog.mjs` aborta el build si aparece un campo de precio, en cualquier nivel del JSON.
-- La solicitud de WhatsApp incluye solo producto, SKU y cantidad.
-- El bundle público (`dist/assets/*.js`) se puede inspeccionar: no contiene precios.
+- No existe ningún campo de precio en los tipos ni en `public/catalog.json`.
+- `scripts/import-inventory.mjs` solo lee las columnas permitidas y valida antes de escribir.
+- `scripts/build-catalog.mjs` aborta el build si aparece un campo de precio, a cualquier nivel del JSON.
+- La solicitud de WhatsApp incluye solo nombre, código y cantidad.
 
 ## Licencia
 
-Proyecto privado de Ferrotech Industrial. Todos los derechos reservados.
+Proyecto privado de Forjados Del Caribe SRL. Todos los derechos reservados.
 
-Contacto: contacto@ferrotech.com · +54 11 4589-2200
+Contacto: forjadosventas06@gmail.com · +18092272492
