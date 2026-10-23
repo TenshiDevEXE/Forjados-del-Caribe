@@ -25,6 +25,7 @@ import ProductDetailModal from './components/ProductDetailModal';
 
 import { ACCENT_STYLES, LOGO_ICONS } from './lib/theme';
 import { loadCatalog } from './lib/api';
+import { buildGroups } from './lib/category-groups';
 import type { Catalog, Notification, Product, QuoteItem, TabId, Theme } from './lib/types';
 
 type ViewMode = 'grid' | 'list';
@@ -60,6 +61,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('catalog');
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -100,21 +102,46 @@ export default function App() {
 
   /* ==================== Datos derivados ==================== */
 
+  // Grupos de categorías (navegación): primero el grupo, luego la categoría.
+  const groups = useMemo(() => buildGroups(categories), [categories]);
+
+  const productsByCategory = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const product of products) {
+      counts.set(product.category, (counts.get(product.category) ?? 0) + 1);
+    }
+    return counts;
+  }, [products]);
+
+  const activeGroup = useMemo(
+    () => groups.find(group => group.name === selectedGroup) ?? null,
+    [groups, selectedGroup]
+  );
+
+  const groupCategories = useMemo(
+    () => new Set(activeGroup?.categories ?? []),
+    [activeGroup]
+  );
+
   const filteredProducts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return products.filter(product => {
-      if (selectedCategory && product.category !== selectedCategory) return false;
+      if (selectedCategory) {
+        if (product.category !== selectedCategory) return false;
+      } else if (activeGroup && !groupCategories.has(product.category)) {
+        return false;
+      }
       if (!term) return true;
       return [product.name, product.id, product.model ?? ''].some(field =>
         field.toLowerCase().includes(term)
       );
     });
-  }, [products, searchTerm, selectedCategory]);
+  }, [products, searchTerm, selectedCategory, activeGroup, groupCategories]);
 
   // Al cambiar los filtros se vuelve a empezar por el primer producto.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [searchTerm, selectedCategory]);
+  }, [searchTerm, selectedGroup, selectedCategory]);
 
   const visibleProducts = useMemo(
     () => filteredProducts.slice(0, visibleCount),
@@ -315,31 +342,82 @@ export default function App() {
               </div>
             </div>
 
+            {/* Grupos de categorías: primer nivel de navegación */}
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => setSelectedCategory(null)}
+                onClick={() => {
+                  setSelectedGroup(null);
+                  setSelectedCategory(null);
+                }}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  !selectedCategory ? `${accent.bg} text-slate-950` : 'glass text-slate-300 hover:text-white'
+                  !selectedGroup ? `${accent.bg} text-slate-950` : 'glass text-slate-300 hover:text-white'
                 }`}
               >
                 Todas
               </button>
-              {categories.map(category => (
+              {groups.map(group => (
                 <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
+                  key={group.name}
+                  onClick={() => {
+                    setSelectedGroup(group.name);
+                    setSelectedCategory(null);
+                  }}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    selectedCategory === category ? `${accent.bg} text-slate-950` : 'glass text-slate-300 hover:text-white'
+                    selectedGroup === group.name ? `${accent.bg} text-slate-950` : 'glass text-slate-300 hover:text-white'
                   }`}
                 >
-                  {category}
+                  {group.name}
+                  <span
+                    className={`ml-1.5 text-xs ${
+                      selectedGroup === group.name ? 'text-slate-950/70' : 'text-slate-500'
+                    }`}
+                  >
+                    {group.categories.reduce(
+                      (total, category) => total + (productsByCategory.get(category) ?? 0),
+                      0
+                    )}
+                  </span>
                 </button>
               ))}
             </div>
 
+            {/* Segundo nivel: las categorías del grupo elegido */}
+            {activeGroup && (
+              <div className="flex flex-wrap gap-2 pl-1">
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    !selectedCategory
+                      ? `${accent.softBg} ${accent.text} ${accent.border}`
+                      : 'border-slate-700/50 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Todas las de {activeGroup.name}
+                </button>
+                {activeGroup.categories.map(category => (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                      selectedCategory === category
+                        ? `${accent.softBg} ${accent.text} ${accent.border}`
+                        : 'border-slate-700/50 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {category}
+                    <span className="ml-1.5 text-slate-500">{productsByCategory.get(category) ?? 0}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             <p className="text-xs text-slate-500">
               {filteredProducts.length} producto{filteredProducts.length === 1 ? '' : 's'}
-              {selectedCategory ? ` en ${selectedCategory}` : ''}
+              {selectedCategory
+                ? ` en ${selectedCategory}`
+                : activeGroup
+                  ? ` en ${activeGroup.name}`
+                  : ''}
             </p>
 
             {filteredProducts.length === 0 ? (

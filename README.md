@@ -7,6 +7,7 @@ Catálogo de productos **100 % estático**, publicado en GitHub Pages. El visita
 ## Características
 
 - Catálogo con búsqueda (nombre, código o modelo), filtro por categoría y vista cuadrícula/lista
+- Navegación en dos niveles: **grupos de categorías** y, dentro de cada grupo, sus categorías
 - Miles de productos con carga por tandas (60 por tanda) para que el navegador no se bloquee
 - Solicitud de cotización por WhatsApp (productos + cantidades, sin precios)
 - Modo oscuro/claro (preferencia del visitante, guardada en `localStorage`)
@@ -70,6 +71,23 @@ Reglas que valida el build (si algo falla, no se publica):
 - `contactPhones` debe tener **al menos un número**; el primero es el principal
 - **Ningún campo de precio** (`price`, `precio`, `sale_price`, `purchase_price`, `cost`…) ni campos desconocidos
 
+### Grupos de categorías (navegación)
+
+Con 34 categorías, mostrarlas todas juntas satura la pantalla. `lib/category-groups.ts` las agrupa en familias y la web filtra primero por grupo y después por categoría:
+
+| Grupo | Categorías |
+| --- | --- |
+| Aceros y Metales | ACERO ESTRUCTURAL, ACERO INOXIDABLE, ACEROS ESPECIALES, MATERIALES DE ALUMINIO, MATERIAL DE HERRERIA |
+| Herramientas y Soldadura | HERRAMIENTAS DE MANO, HERRAMIENTAS ELECTRICAS, MAQUINARIA, ABRASIVOS, SOLDADURA, ELECTRODOS |
+| Tornillería y Herrajes | TORNILLERIA Y AFINES, ACCESORIOS, HERRAJES, TRANSMISION |
+| Adornos y Decoración | ADORNOS ALUMINIO, ADORNOS BRONCE, ADORNOS ESTAMPADOS, ADORNOS FORJADOS, ADORNOS FUNDICION, CLAVOS DECORATIVO |
+| Construcción y Afines | MATERIALES DE CONSTRUCCION, MADERAS Y AFINES, PUERTAS ENRROLLABLES Y AFINES, TECHOS Y AFINES, PLOMERIA Y AFINES |
+| Electricidad y Mantenimiento | ELECTRICIDAD Y AFINES, VENTILACION, FILTROS Y LUBRICANTES, SUMINISTRO REPUESTOS VEHICULO |
+| Pinturas y Papelería | PINTURAS Y AFINES, PAPELERIA Y AFINES |
+| Seguridad | SEGURIDAD PERIMETRAL, SEGURIDAD PERSONAL |
+
+Es solo interfaz: no cambia `public/catalog.json`. Para reorganizarlos, edita ese archivo y mueve cada categoría de lista. Si el inventario estrena una categoría que no esté en ningún grupo, aparece sola en **"Otras categorías"** (y el test del proyecto avisa), así que nunca se queda fuera de la web.
+
 ### Varios números de WhatsApp
 
 Las solicitudes pueden ir a más de un número. Añade entradas a `contactPhones`: la primera es la principal y la que aparece por defecto. Si hay más de una, el visitante ve un selector "Enviar a" en el panel de solicitud.
@@ -107,6 +125,7 @@ public/catalog.json          ← catálogo publicado (miles de productos)
 scripts/build-catalog.mjs    ← valida el catálogo; aborta el build si hay precios
 lib/api.ts                   ← carga el catálogo con fetch en tiempo de ejecución
 lib/types.ts                 ← tipos del catálogo
+lib/category-groups.ts       ← grupos de categorías para la navegación
 lib/theme.ts                 ← colores de acento e iconos
 App.tsx                      ← catálogo + solicitud de cotización
 components/                  ← UI (modales, miniaturas, toggle de tema)

@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import App from '../../App';
+import { buildGroups, OTHER_GROUP_NAME } from '../../lib/category-groups';
 import type { Catalog } from '../../lib/types';
 
 // El catálogo real que se publica (miles de productos).
@@ -25,6 +26,17 @@ describe('public/catalog.json', () => {
       .filter(product => !categories.has(product.category))
       .map(product => product.category);
     expect([...new Set(unknown)]).toEqual([]);
+  });
+});
+
+describe('agrupación de categorías', () => {
+  it('cubre cada categoría del catálogo una sola vez', () => {
+    const groups = buildGroups(catalog.categories);
+    const grouped = groups.flatMap(group => group.categories);
+
+    expect(groups.map(group => group.name)).not.toContain(OTHER_GROUP_NAME);
+    expect(grouped).toHaveLength(catalog.categories.length);
+    expect(new Set(grouped).size).toBe(catalog.categories.length);
   });
 });
 
