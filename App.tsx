@@ -177,12 +177,19 @@ export default function App() {
       setActiveTab('quote');
       return;
     }
+
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('es-DO');
+    const timeStr = now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
+
     const lines = quoteItems.map(
-      item => `• ${item.quantity} x ${item.product.name} | Código: ${item.product.id}`
+      (item, idx) => `${idx + 1}. *${item.product.id}* - ${item.product.name} | *Cant:* ${item.quantity}`
     );
+
     const message = [
       `*SOLICITUD DE COTIZACIÓN*`,
-      `🏢 ${config?.name ?? 'Catálogo'}`,
+      `${config?.name ?? 'Forjados Del Caribe SRL'}`,
+      `📅 ${dateStr} | 🕒 ${timeStr}`,
       '',
       '*DATOS DEL CLIENTE:*',
       `• *Nombre:* ${customerName.trim()}`,
@@ -191,11 +198,13 @@ export default function App() {
       '*PRODUCTOS SOLICITADOS:*',
       ...lines,
       '',
-      `*Total de ítems:* ${quoteCount} ${quoteCount === 1 ? 'unidad' : 'unidades'}`,
+      '*RESUMEN:*',
+      `• Líneas: ${quoteItems.length}`,
+      `• Total de unidades: ${quoteCount}`,
       '',
-      quoteNote.trim() && `*Comentario:* ${quoteNote.trim()}`,
-      quoteNote.trim() && '',
-      '_Favor enviar cotización con disponibilidad y precio._',
+      quoteNote.trim() ? `*OBSERVACIONES:* ${quoteNote.trim()}` : null,
+      quoteNote.trim() ? '' : null,
+      '_Solicito cotización con disponibilidad, precio unitario, precio total, tiempo de entrega y forma de pago._',
     ]
       .filter(Boolean)
       .join('\n');
