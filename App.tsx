@@ -160,13 +160,23 @@ export default function App() {
       setNotification({ message: 'No se pudo copiar la lista', type: 'error' });
     }
   }, [quoteItems, customerName, customerAddress, quoteNote, config?.name, quoteCount, setNotification]);
-
   const sendQuote = useCallback(() => {
     const phone = whatsappNumber(selectedPhone?.phone ?? '');
     if (!phone) {
       setNotification({ message: 'Configura al menos un número de WhatsApp para enviar la solicitud', type: 'error' });
       return;
     }
+    if (!customerName.trim()) {
+      setNotification({ message: 'Ingresa el nombre del cliente', type: 'error' });
+      setActiveTab('quote');
+      return;
+    }
+    if (!customerAddress.trim()) {
+      setNotification({ message: 'Ingresa la dirección del cliente', type: 'error' });
+      setActiveTab('quote');
+      return;
+    }
+
     const now = new Date();
     const dateStr = now.toLocaleDateString('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const timeStr = now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -187,12 +197,10 @@ export default function App() {
       `• Hora: ${timeStr}`,
       `• Origen: Catálogo Web`,
       '',
-      customerName.trim() || customerAddress.trim()
-        ? `*DATOS DEL CLIENTE*`
-        : null,
-      customerName.trim() ? `• Nombre / Razón Social: ${customerName.trim()}` : null,
-      customerAddress.trim() ? `• Dirección de Entrega: ${customerAddress.trim()}` : null,
-      customerName.trim() || customerAddress.trim() ? '' : null,
+      `*DATOS DEL CLIENTE*`,
+      `• Nombre / Razón Social: ${customerName.trim()}`,
+      `• Dirección de Entrega: ${customerAddress.trim()}`,
+      '',
       `*DETALLE SOLICITADO*`,
       ...lines,
       '',
@@ -200,6 +208,8 @@ export default function App() {
       `• Líneas solicitadas: ${quoteItems.length}`,
       `• Total de unidades: ${quoteCount}`,
       '',
+      quoteNote.trim() ? `*FORMA DE PAGO:* ${quoteNote.trim()}` : null,
+      quoteNote.trim() ? '' : null,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
       `_Respuesta por este mismo medio._`,
     ]
@@ -207,7 +217,7 @@ export default function App() {
       .join('\n');
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
-  }, [quoteItems, customerName, customerAddress, selectedPhone, config?.name, quoteCount, setNotification]);
+  }, [quoteItems, customerName, customerAddress, quoteNote, selectedPhone, config?.name, quoteCount, setNotification]);
 
   const tabs: TabDef[] = [
     { id: 'catalog', label: 'Catálogo', icon: Package },
@@ -530,34 +540,37 @@ export default function App() {
                 <div className="mt-4 space-y-3.5">
                   <div>
                     <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted">
-                      Nombre del cliente (opcional)
+                      Nombre del cliente *
                     </label>
                     <input
                       value={customerName}
                       onChange={e => setCustomerName(e.target.value)}
                       className="field"
                       placeholder="Nombre y apellido o razón social"
+                      required
                     />
                   </div>
                   <div>
                     <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted">
-                      Dirección (opcional)
+                      Dirección *
                     </label>
                     <input
                       value={customerAddress}
                       onChange={e => setCustomerAddress(e.target.value)}
                       className="field"
                       placeholder="Dirección de entrega"
+                      required
                     />
                   </div>
                   <div>
                     <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted">
-                      Comentario (opcional)
+                      Forma de pago (opcional)
                     </label>
-                    <textarea
+                    <input
                       value={quoteNote}
                       onChange={e => setQuoteNote(e.target.value)}
-                      className="field min-h-[80px]"
+                      className="field"
+                      placeholder="Efectivo, transferencia, etc."
                     />
                   </div>
                   {phones.length > 1 && (
@@ -582,9 +595,9 @@ export default function App() {
                   )}
                   <button
                     onClick={sendQuote}
-                    disabled={quoteItems.length === 0}
+                    disabled={quoteItems.length === 0 || !customerName.trim() || !customerAddress.trim()}
                     className={`btn-accent w-full pt-3 pb-3 ${
-                      quoteItems.length === 0
+                      quoteItems.length === 0 || !customerName.trim() || !customerAddress.trim()
                         ? 'cursor-not-allowed border border-line bg-sunken text-muted'
                         : `${accent.bg} ${accent.bgHover} ${accent.onAccent}`
                     }`}
@@ -592,7 +605,7 @@ export default function App() {
                     <Send className="h-4 w-4" /> Solicitar por WhatsApp
                   </button>
                   <p className="text-center text-xs leading-relaxed text-muted">
-                    La solicitud se envía sin precios. Un asesor le responderá con la cotización.
+                    *Nombre y dirección son obligatorios. La solicitud se envía sin precios.
                   </p>
                 </div>
               </aside>
