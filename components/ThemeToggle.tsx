@@ -12,11 +12,15 @@ export default function ThemeToggle({ theme, onToggle }: ThemeToggleProps) {
   return (
     <button
       onClick={onToggle}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-elevated text-muted transition-colors hover:border-navy-400 hover:text-ink"
+      className="group inline-flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-elevated text-muted transition-all duration-150 ease-tahoe hover:border-navy-400 hover:text-ink active:scale-[0.98]"
       title={label}
       aria-label={label}
     >
-      {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      {theme === 'dark' ? (
+        <Sun className="h-4 w-4 transition-transform duration-200 ease-tahoe group-hover:rotate-12" />
+      ) : (
+        <Moon className="h-4 w-4 transition-transform duration-200 ease-tahoe group-hover:-rotate-12" />
+      )}
     </button>
   );
 }

@@ -1,40 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  AlertCircle,
-  CheckCircle2,
-  ClipboardList,
-  Clock,
-  Eye,
-  Grid,
-  List,
-  Mail,
-  MapPin,
-  MessageCircle,
-  Minus,
-  Package,
-  Phone,
-  Plus,
-  Search,
-  Send,
-  ShoppingCart,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { AlertCircle, CheckCircle2, ClipboardList, Mail, MapPin, MessageCircle, Minus, Package, Phone, Plus, Send, ShoppingCart, Trash2 } from 'lucide-react';
 
 import ThemeToggle from './components/ThemeToggle';
 import ProductDetailModal from './components/ProductDetailModal';
+import CatalogFilters from './components/catalog/CatalogFilters';
+import { ProductGridItem, ProductListItem } from './components/catalog/ProductCard';
 
 import { ACCENT_STYLES, LOGO_ICONS } from './lib/theme';
-import { loadCatalog } from './lib/api';
-import { buildGroups } from './lib/category-groups';
-import type { Catalog, Notification, Product, QuoteItem, TabId, Theme } from './lib/types';
+import type { Product, TabId } from './lib/types';
+
+import { useCatalog, useTheme } from './hooks/useCatalog';
+import { useProductFilters } from './hooks/useProductFilters';
+import { useQuote } from './hooks/useQuote';
+import { formatCount, whatsappNumber } from './utils/format';
 
 type ViewMode = 'grid' | 'list';
-
-// Con miles de referencias no se renderizan todas de golpe: se muestran por tandas.
-const PAGE_SIZE = 60;
-
-const THEME_STORAGE_KEY = 'catalogo:theme';
 
 interface TabDef {
   id: TabId;
@@ -43,72 +23,29 @@ interface TabDef {
   badge?: number;
 }
 
-function whatsappNumber(phone: string): string {
-  return phone.replace(/\D/g, '');
-}
-
-function formatCount(value: number): string {
-  return value.toLocaleString('es-DO');
-}
-
-// El tema es una preferencia del visitante: se guarda localmente, no en el servidor
-function readStoredTheme(): Theme | null {
-  const value = localStorage.getItem(THEME_STORAGE_KEY);
-  return value === 'light' || value === 'dark' ? value : null;
-}
-
-function AvailabilityBadge({ available }: { available: boolean }) {
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold ${
-        available
-          ? 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-300'
-          : 'bg-sunken text-muted'
-      }`}
-    >
-      {available ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-      {available ? 'En existencia' : 'Bajo pedido'}
-    </span>
-  );
-}
-
 export default function App() {
-  const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { catalog, loadError } = useCatalog();
+  const { theme, toggleTheme } = useTheme();
+  const {
+    quoteItems,
+    customerName,
+    setCustomerName,
+    quoteNote,
+    setQuoteNote,
+    phoneIndex,
+    setPhoneIndex,
+    notification,
+    setNotification,
+    addToQuote,
+    changeQuantity,
+    removeFromQuote,
+    clearQuote,
+    quoteCount,
+  } = useQuote();
 
-  // El tema claro es el de la web corporativa; el visitante puede cambiarlo.
-  const [theme, setTheme] = useState<Theme>(() => readStoredTheme() ?? 'light');
-  const [notification, setNotification] = useState<Notification | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('catalog');
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-
-  const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
-  const [customerName, setCustomerName] = useState('');
-  const [quoteNote, setQuoteNote] = useState('');
-  const [phoneIndex, setPhoneIndex] = useState(0);
-
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-
-  /* ==================== Carga del catálogo ==================== */
-
-  useEffect(() => {
-    const controller = new AbortController();
-    loadCatalog(controller.signal)
-      .then(data => {
-        setCatalog(data);
-        // El tema del catálogo solo se aplica si el visitante no eligió uno.
-        setTheme(readStoredTheme() ?? data.config.theme);
-      })
-      .catch(error => {
-        if (!controller.signal.aborted) setLoadError(error.message);
-      });
-    return () => controller.abort();
-  }, []);
 
   const config = catalog?.config;
   const categories = catalog?.categories ?? [];
@@ -117,136 +54,45 @@ export default function App() {
   const accent = ACCENT_STYLES[config?.accentColor ?? 'gold'];
   const LogoIcon = LOGO_ICONS[config?.logoType ?? 'wrench'];
 
-  // El primer número de la lista es el principal: se usa por defecto.
   const phones = config?.contactPhones ?? [];
   const selectedPhone = phones[phoneIndex] ?? phones[0];
 
-  /* ==================== Datos derivados ==================== */
-
-  // Grupos de categorías (navegación): primero la familia, luego la categoría.
-  const groups = useMemo(() => buildGroups(categories), [categories]);
-
-  const productsByCategory = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const product of products) {
-      counts.set(product.category, (counts.get(product.category) ?? 0) + 1);
-    }
-    return counts;
-  }, [products]);
+  const {
+    searchTerm,
+    setSearchTerm,
+    selectedGroup,
+    setSelectedGroup,
+    selectedCategory,
+    setSelectedCategory,
+    visibleProducts,
+    filteredProducts,
+    groups,
+    productsByCategory,
+    activeGroup,
+    hasFilters,
+    clearFilters,
+    loadMore,
+    canLoadMore,
+    remainingCount,
+  } = useProductFilters(products, categories);
 
   const availableCount = useMemo(
     () => products.reduce((total, product) => total + (product.stock > 0 ? 1 : 0), 0),
     [products]
   );
 
-  const activeGroup = useMemo(
-    () => groups.find(group => group.name === selectedGroup) ?? null,
-    [groups, selectedGroup]
-  );
-
-  const groupCategories = useMemo(() => new Set(activeGroup?.categories ?? []), [activeGroup]);
-
-  const filteredProducts = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    return products.filter(product => {
-      if (selectedCategory) {
-        if (product.category !== selectedCategory) return false;
-      } else if (activeGroup && !groupCategories.has(product.category)) {
-        return false;
-      }
-      if (!term) return true;
-      return [product.name, product.id, product.model ?? ''].some(field =>
-        field.toLowerCase().includes(term)
-      );
-    });
-  }, [products, searchTerm, selectedCategory, activeGroup, groupCategories]);
-
-  // Al cambiar los filtros se vuelve a empezar por la primera referencia.
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [searchTerm, selectedGroup, selectedCategory]);
-
-  const visibleProducts = useMemo(
-    () => filteredProducts.slice(0, visibleCount),
-    [filteredProducts, visibleCount]
-  );
-
-  const quoteCount = quoteItems.reduce((total, item) => total + item.quantity, 0);
-  const hasFilters = Boolean(searchTerm.trim() || selectedGroup || selectedCategory);
-
-  /* ==================== Notificaciones ==================== */
-
-  const notify = useCallback((message: string, type: Notification['type'] = 'success') => {
-    setNotification({ message, type });
-  }, []);
-
   useEffect(() => {
     if (!notification) return;
     const timer = setTimeout(() => setNotification(null), 3200);
     return () => clearTimeout(timer);
-  }, [notification]);
-
-  /* ==================== Tema ==================== */
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-  }, [theme]);
-
-  const toggleTheme = useCallback(() => {
-    setTheme(prev => {
-      const next: Theme = prev === 'dark' ? 'light' : 'dark';
-      localStorage.setItem(THEME_STORAGE_KEY, next);
-      return next;
-    });
-  }, []);
-
-  /* ==================== Filtros ==================== */
-
-  const clearFilters = useCallback(() => {
-    setSearchTerm('');
-    setSelectedGroup(null);
-    setSelectedCategory(null);
-  }, []);
-
-  /* ==================== Solicitud de cotización ==================== */
-
-  const addToQuote = useCallback(
-    (product: Product) => {
-      setQuoteItems(prev => {
-        const existing = prev.find(item => item.product.id === product.id);
-        if (existing) {
-          return prev.map(item =>
-            item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-          );
-        }
-        return [...prev, { product, quantity: 1 }];
-      });
-      notify(`${product.name} agregado a la solicitud`, 'info');
-    },
-    [notify]
-  );
-
-  const changeQuantity = useCallback((productId: string, delta: number) => {
-    setQuoteItems(prev =>
-      prev
-        .map(item =>
-          item.product.id === productId ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item
-        )
-        .filter(item => item.quantity > 0)
-    );
-  }, []);
-
-  const removeFromQuote = useCallback((productId: string) => {
-    setQuoteItems(prev => prev.filter(item => item.product.id !== productId));
-  }, []);
+  }, [notification, setNotification]);
 
   const sendQuote = useCallback(() => {
     const phone = whatsappNumber(selectedPhone?.phone ?? '');
     if (!phone) {
-      notify('Configura al menos un número de WhatsApp para enviar la solicitud', 'error');
+      setNotification({ message: 'Configura al menos un número de WhatsApp para enviar la solicitud', type: 'error' });
       return;
     }
-    // La solicitud nunca incluye precios
     const lines = quoteItems.map(
       item => `• ${item.quantity} x ${item.product.name} (Código ${item.product.id})`
     );
@@ -264,16 +110,12 @@ export default function App() {
       .join('\n');
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
-  }, [quoteItems, customerName, quoteNote, notify, selectedPhone]);
-
-  /* ==================== Navegación ==================== */
+  }, [quoteItems, customerName, quoteNote, selectedPhone, config?.name, setNotification]);
 
   const tabs: TabDef[] = [
     { id: 'catalog', label: 'Catálogo', icon: Package },
     { id: 'quote', label: 'Solicitud', icon: ClipboardList, badge: quoteCount },
   ];
-
-  /* ==================== Carga y error ==================== */
 
   if (!catalog) {
     return (
@@ -281,22 +123,27 @@ export default function App() {
         <div className="max-w-sm text-center">
           {loadError ? (
             <>
-              <AlertCircle className="mx-auto mb-3 h-10 w-10 text-rose-600" />
+              <AlertCircle className="mx-auto mb-3 h-10 w-10 text-rose-600" aria-hidden="true" />
               <h1 className="font-bold tracking-tight">No se pudo cargar el catálogo</h1>
               <p className="mt-1 text-sm text-muted">{loadError}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="btn-ghost mt-5"
+              >
+                Reintentar
+              </button>
             </>
           ) : (
             <>
-              <Package className="mx-auto mb-3 h-10 w-10 animate-pulse text-muted" />
+              <Package className="mx-auto mb-3 h-10 w-10 animate-pulse text-muted" aria-hidden="true" />
               <p className="text-sm text-muted">Cargando catálogo…</p>
+              <p className="mt-2 text-xs text-muted">Esto puede tomar unos segundos</p>
             </>
           )}
         </div>
       </div>
     );
   }
-
-  /* ==================== Estilos de filtro ==================== */
 
   const groupChip = (active: boolean) =>
     `chip px-3 py-1.5 text-sm ${
@@ -305,29 +152,14 @@ export default function App() {
         : 'border-line bg-elevated text-muted hover:border-navy-400 hover:text-ink'
     }`;
 
-  const categoryChip = (active: boolean) =>
-    `chip px-2.5 py-1 text-xs ${
-      active
-        ? `${accent.border} ${accent.softBg} ${accent.text}`
-        : 'border-line bg-elevated text-muted hover:border-navy-400 hover:text-ink'
-    }`;
-
-  const viewButton = (active: boolean) =>
-    `inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
-      active ? 'bg-navy-800 text-white' : 'text-muted hover:text-ink'
-    }`;
-
-  /* ==================== Render ==================== */
-
   return (
     <div className="min-h-screen bg-surface text-ink">
-      {/* ===== Encabezado ===== */}
-      <header className="sticky top-0 z-40 border-b border-line bg-elevated/95 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-line/80 glass">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex items-center justify-between gap-4 py-3.5">
             <button
               onClick={() => setActiveTab('catalog')}
-              className="flex min-w-0 items-center gap-3 text-left"
+              className="flex min-w-0 items-center gap-3 text-left transition-opacity duration-150 ease-tahoe hover:opacity-90"
               aria-label={`${config?.name} — ir al catálogo`}
             >
               <span
@@ -357,7 +189,7 @@ export default function App() {
             </div>
           </div>
 
-          <nav className="-mb-px flex gap-6 overflow-x-auto">
+          <nav className="-mb-px flex gap-6 overflow-x-auto" aria-label="Navegación principal" role="tablist">
             {tabs.map(tab => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
@@ -365,20 +197,24 @@ export default function App() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  aria-current={active ? 'page' : undefined}
-                  className={`inline-flex items-center gap-2 border-b-2 pb-3 pt-1 text-sm font-semibold whitespace-nowrap transition-colors ${
+                  className={`inline-flex items-center gap-2 border-b-2 pb-3 pt-1 text-sm font-semibold whitespace-nowrap transition-all duration-150 ease-tahoe focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-500/50 rounded-sm active:scale-[0.98] ${
                     active
                       ? 'border-gold-500 text-ink'
                       : 'border-transparent text-muted hover:text-ink'
                   }`}
+                  aria-current={active ? 'page' : undefined}
+                  aria-selected={active}
+                  role="tab"
+                  tabIndex={active ? 0 : -1}
                 >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                  <span>{tab.label}</span>
                   {tab.badge ? (
                     <span
                       className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${
                         active ? `${accent.bg} ${accent.onAccent}` : 'bg-sunken text-muted'
                       }`}
+                      aria-label={`${tab.badge} productos en la solicitud`}
                     >
                       {tab.badge}
                     </span>
@@ -391,7 +227,6 @@ export default function App() {
       </header>
 
       <main>
-        {/* ===== Presentación ===== */}
         {activeTab === 'catalog' && (
           <section className="border-b border-line bg-gradient-to-br from-navy-900 to-navy-950">
             <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12">
@@ -427,109 +262,25 @@ export default function App() {
         )}
 
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-          {/* ===== Catálogo ===== */}
           {activeTab === 'catalog' && (
             <section className="tab-enter space-y-5">
-              <div className="panel space-y-4 p-4">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-                    <input
-                      value={searchTerm}
-                      onChange={e => setSearchTerm(e.target.value)}
-                      placeholder="Buscar por descripción, código o modelo…"
-                      aria-label="Buscar en el catálogo"
-                      className="field pl-9"
-                    />
-                  </div>
-                  <div className="inline-flex shrink-0 self-start rounded-lg border border-line p-0.5">
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={viewButton(viewMode === 'list')}
-                      aria-label="Vista de lista"
-                      aria-pressed={viewMode === 'list'}
-                    >
-                      <List className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      className={viewButton(viewMode === 'grid')}
-                      aria-label="Vista en cuadrícula"
-                      aria-pressed={viewMode === 'grid'}
-                    >
-                      <Grid className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Familias: primer nivel de navegación */}
-                <div className="border-t border-line pt-4">
-                  <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
-                    Familias
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => {
-                        setSelectedGroup(null);
-                        setSelectedCategory(null);
-                      }}
-                      className={groupChip(!selectedGroup)}
-                    >
-                      Todas
-                      <span className={!selectedGroup ? 'text-white/70' : 'text-muted'}>
-                        {formatCount(products.length)}
-                      </span>
-                    </button>
-                    {groups.map(group => (
-                      <button
-                        key={group.name}
-                        onClick={() => {
-                          setSelectedGroup(group.name);
-                          setSelectedCategory(null);
-                        }}
-                        className={groupChip(selectedGroup === group.name)}
-                      >
-                        {group.name}
-                        <span className={selectedGroup === group.name ? 'text-white/70' : 'text-muted'}>
-                          {formatCount(
-                            group.categories.reduce(
-                              (total, category) => total + (productsByCategory.get(category) ?? 0),
-                              0
-                            )
-                          )}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Segundo nivel: las categorías de la familia elegida */}
-                {activeGroup && (
-                  <div className="border-t border-line pt-4">
-                    <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
-                      {activeGroup.name}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => setSelectedCategory(null)}
-                        className={categoryChip(!selectedCategory)}
-                      >
-                        Todas las líneas
-                      </button>
-                      {activeGroup.categories.map(category => (
-                        <button
-                          key={category}
-                          onClick={() => setSelectedCategory(category)}
-                          className={categoryChip(selectedCategory === category)}
-                        >
-                          {category}
-                          <span className="text-muted">{productsByCategory.get(category) ?? 0}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <CatalogFilters
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                groups={groups}
+                selectedGroup={selectedGroup}
+                onGroupChange={setSelectedGroup}
+                activeGroup={activeGroup}
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
+                productsByCategory={productsByCategory}
+                totalProducts={products.length}
+                hasFilters={hasFilters}
+                onClearFilters={clearFilters}
+                accent={accent}
+              />
 
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-muted">
@@ -541,14 +292,6 @@ export default function App() {
                       ? ` en ${activeGroup.name}`
                       : ''}
                 </p>
-                {hasFilters && (
-                  <button
-                    onClick={clearFilters}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-navy-700 hover:underline dark:text-navy-300"
-                  >
-                    <X className="h-3.5 w-3.5" /> Limpiar filtros
-                  </button>
-                )}
               </div>
 
               {filteredProducts.length === 0 ? (
@@ -567,101 +310,40 @@ export default function App() {
               ) : viewMode === 'list' ? (
                 <div className="panel divide-y divide-line overflow-hidden">
                   {visibleProducts.map(product => (
-                    <div
+                    <ProductListItem
                       key={product.id}
-                      className="flex items-start gap-4 px-4 py-3.5 transition-colors hover:bg-sunken/60"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-                          <span className="font-mono font-medium">{product.id}</span>
-                          <span className="truncate">{product.category}</span>
-                        </div>
-                        <p className="mt-1.5 text-sm font-medium leading-snug text-ink">
-                          {product.name}
-                        </p>
-                        {product.model && (
-                          <p className="mt-0.5 text-xs text-muted">Modelo {product.model}</p>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-2">
-                        <AvailabilityBadge available={product.stock > 0} />
-                        <div className="flex gap-1.5">
-                          <button
-                            onClick={() => setSelectedProduct(product)}
-                            className="rounded-md border border-line px-2.5 py-1.5 text-muted transition-colors hover:border-navy-400 hover:text-ink"
-                            aria-label={`Ver detalle de ${product.name}`}
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => addToQuote(product)}
-                            className={`rounded-md px-2.5 py-1.5 transition-colors ${accent.bg} ${accent.bgHover} ${accent.onAccent}`}
-                            aria-label={`Agregar ${product.name} a la solicitud`}
-                          >
-                            <ShoppingCart className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                      product={product}
+                      accent={accent}
+                      onViewDetail={setSelectedProduct}
+                      onAddToQuote={addToQuote}
+                    />
                   ))}
                 </div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {visibleProducts.map(product => (
-                    <article
+                    <ProductGridItem
                       key={product.id}
-                      className="panel flex flex-col p-4 transition-shadow hover:shadow-soft"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-xs font-medium text-muted">{product.id}</span>
-                        <AvailabilityBadge available={product.stock > 0} />
-                      </div>
-                      <div className="flex-1 pt-3">
-                        <h3 className="line-clamp-3 text-sm font-semibold leading-snug text-ink">
-                          {product.name}
-                        </h3>
-                        <p className="mt-2 truncate text-xs text-muted">{product.category}</p>
-                        {product.model && (
-                          <p className="mt-0.5 truncate text-xs text-muted">Modelo {product.model}</p>
-                        )}
-                      </div>
-                      <div className="mt-4 flex gap-2 border-t border-line pt-3">
-                        <button
-                          onClick={() => setSelectedProduct(product)}
-                          className="btn-ghost flex-1"
-                        >
-                          <Eye className="h-4 w-4" /> Detalle
-                        </button>
-                        <button
-                          onClick={() => addToQuote(product)}
-                          className={`rounded-lg px-3 py-2 transition-colors ${accent.bg} ${accent.bgHover} ${accent.onAccent}`}
-                          aria-label={`Agregar ${product.name} a la solicitud`}
-                        >
-                          <ShoppingCart className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </article>
+                      product={product}
+                      accent={accent}
+                      onViewDetail={setSelectedProduct}
+                      onAddToQuote={addToQuote}
+                    />
                   ))}
                 </div>
               )}
 
-              {visibleProducts.length < filteredProducts.length && (
+              {canLoadMore && (
                 <div className="pt-2 text-center">
-                  <button
-                    onClick={() => setVisibleCount(count => count + PAGE_SIZE)}
-                    className="btn-ghost px-5 py-2.5"
-                  >
+                  <button onClick={loadMore} className="btn-ghost px-5 py-2.5 transition-all duration-150 ease-tahoe active:scale-[0.98]">
                     Cargar más referencias
-                    <span className="text-muted">
-                      ({formatCount(filteredProducts.length - visibleProducts.length)} restantes)
-                    </span>
+                    <span className="text-muted">({formatCount(remainingCount)} restantes)</span>
                   </button>
                 </div>
               )}
             </section>
           )}
 
-          {/* ===== Solicitud de cotización ===== */}
           {activeTab === 'quote' && (
             <section className="tab-enter grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
               <div className="panel p-5">
@@ -671,7 +353,7 @@ export default function App() {
                   </h2>
                   {quoteItems.length > 0 && (
                     <button
-                      onClick={() => setQuoteItems([])}
+                      onClick={clearQuote}
                       className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-700 hover:underline dark:text-rose-300"
                     >
                       <Trash2 className="h-3.5 w-3.5" /> Vaciar lista
@@ -797,7 +479,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* ===== Pie de página ===== */}
       <footer className="mt-16 border-t border-navy-800 bg-navy-950">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
           <div className="grid gap-8 md:grid-cols-3">
@@ -874,7 +555,6 @@ export default function App() {
         </div>
       </footer>
 
-      {/* ===== Modales ===== */}
       {selectedProduct && (
         <ProductDetailModal
           product={selectedProduct}
@@ -888,21 +568,22 @@ export default function App() {
         />
       )}
 
-      {/* ===== Notificación ===== */}
       {notification && (
         <div
-          className={`toast-enter fixed bottom-5 right-5 z-[60] flex max-w-sm items-start gap-3 rounded-xl border bg-elevated px-4 py-3 text-sm shadow-lift ${
+          className={`toast-enter fixed bottom-5 right-5 z-[60] flex max-w-sm items-start gap-3 rounded-xl border bg-elevated/95 backdrop-blur-xl px-4 py-3 text-sm shadow-tahoe-lift ${
             notification.type === 'error'
               ? 'border-rose-600/40 text-rose-700 dark:text-rose-300'
               : notification.type === 'info'
                 ? 'border-line text-ink'
                 : 'border-emerald-600/40 text-emerald-700 dark:text-emerald-300'
           }`}
+          role="status"
+          aria-live="polite"
         >
           {notification.type === 'error' ? (
-            <AlertCircle className="h-4 w-4 shrink-0" />
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
           ) : (
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
           )}
           <span>{notification.message}</span>
         </div>

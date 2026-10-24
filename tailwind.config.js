@@ -4,6 +4,7 @@ export default {
     "./index.html",
     "./*.{js,ts,jsx,tsx}",
     "./components/**/*.{js,ts,jsx,tsx}",
+    "./hooks/**/*.{js,ts,jsx,tsx}",
     // lib/theme.ts contiene las clases de cada acento: sin este glob
     // Tailwind las elimina al compilar y el acento deja de aplicarse.
     "./lib/**/*.{js,ts,jsx,tsx}",
@@ -51,9 +52,26 @@ export default {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
       },
+      borderRadius: {
+        xl: '0.875rem',
+        '2xl': '1rem',
+        '3xl': '1.25rem',
+      },
       boxShadow: {
-        soft: '0 1px 2px 0 rgb(10 15 25 / 0.04), 0 10px 24px -14px rgb(10 15 25 / 0.14)',
-        lift: '0 2px 6px 0 rgb(10 15 25 / 0.06), 0 18px 34px -18px rgb(10 15 25 / 0.22)',
+        soft: '0 1px 1px 0 rgb(10 15 25 / 0.02), 0 8px 24px -14px rgb(10 15 25 / 0.14)',
+        lift: '0 1px 1px 0 rgb(10 15 25 / 0.02), 0 16px 36px -18px rgb(10 15 25 / 0.20)',
+        tahoe: '0 1px 1px rgb(255 255 255 / 0.01), 0 10px 30px -22px rgb(10 15 25 / 0.28)',
+        'tahoe-lift': '0 1px 1px rgb(255 255 255 / 0.01), 0 22px 60px -32px rgb(10 15 25 / 0.34)',
+      },
+      transitionTimingFunction: {
+        tahoe: 'cubic-bezier(0.25, 0.8, 0.25, 1)',
+        spring: 'cubic-bezier(0.16, 1, 0.3, 1)',
+      },
+      transitionDuration: {
+        150: '150ms',
+        200: '200ms',
+        250: '250ms',
+        280: '280ms',
       },
     },
   },
