@@ -123,14 +123,21 @@ export default function App() {
         <div className="max-w-sm text-center">
           {loadError ? (
             <>
-              <AlertCircle className="mx-auto mb-3 h-10 w-10 text-rose-600" />
+              <AlertCircle className="mx-auto mb-3 h-10 w-10 text-rose-600" aria-hidden="true" />
               <h1 className="font-bold tracking-tight">No se pudo cargar el catálogo</h1>
               <p className="mt-1 text-sm text-muted">{loadError}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="btn-ghost mt-5"
+              >
+                Reintentar
+              </button>
             </>
           ) : (
             <>
-              <Package className="mx-auto mb-3 h-10 w-10 animate-pulse text-muted" />
+              <Package className="mx-auto mb-3 h-10 w-10 animate-pulse text-muted" aria-hidden="true" />
               <p className="text-sm text-muted">Cargando catálogo…</p>
+              <p className="mt-2 text-xs text-muted">Esto puede tomar unos segundos</p>
             </>
           )}
         </div>
@@ -147,12 +154,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-surface text-ink">
-      <header className="sticky top-0 z-40 border-b border-line bg-elevated/95 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-line/80 glass">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex items-center justify-between gap-4 py-3.5">
             <button
               onClick={() => setActiveTab('catalog')}
-              className="flex min-w-0 items-center gap-3 text-left"
+              className="flex min-w-0 items-center gap-3 text-left transition-opacity duration-150 ease-tahoe hover:opacity-90"
               aria-label={`${config?.name} — ir al catálogo`}
             >
               <span
@@ -182,7 +189,7 @@ export default function App() {
             </div>
           </div>
 
-          <nav className="-mb-px flex gap-6 overflow-x-auto">
+          <nav className="-mb-px flex gap-6 overflow-x-auto" aria-label="Navegación principal" role="tablist">
             {tabs.map(tab => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
@@ -190,20 +197,24 @@ export default function App() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  aria-current={active ? 'page' : undefined}
-                  className={`inline-flex items-center gap-2 border-b-2 pb-3 pt-1 text-sm font-semibold whitespace-nowrap transition-colors ${
+                  className={`inline-flex items-center gap-2 border-b-2 pb-3 pt-1 text-sm font-semibold whitespace-nowrap transition-all duration-150 ease-tahoe focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-500/50 rounded-sm active:scale-[0.98] ${
                     active
                       ? 'border-gold-500 text-ink'
                       : 'border-transparent text-muted hover:text-ink'
                   }`}
+                  aria-current={active ? 'page' : undefined}
+                  aria-selected={active}
+                  role="tab"
+                  tabIndex={active ? 0 : -1}
                 >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                  <span>{tab.label}</span>
                   {tab.badge ? (
                     <span
                       className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${
                         active ? `${accent.bg} ${accent.onAccent}` : 'bg-sunken text-muted'
                       }`}
+                      aria-label={`${tab.badge} productos en la solicitud`}
                     >
                       {tab.badge}
                     </span>
@@ -324,7 +335,7 @@ export default function App() {
 
               {canLoadMore && (
                 <div className="pt-2 text-center">
-                  <button onClick={loadMore} className="btn-ghost px-5 py-2.5">
+                  <button onClick={loadMore} className="btn-ghost px-5 py-2.5 transition-all duration-150 ease-tahoe active:scale-[0.98]">
                     Cargar más referencias
                     <span className="text-muted">({formatCount(remainingCount)} restantes)</span>
                   </button>
@@ -559,18 +570,20 @@ export default function App() {
 
       {notification && (
         <div
-          className={`toast-enter fixed bottom-5 right-5 z-[60] flex max-w-sm items-start gap-3 rounded-xl border bg-elevated px-4 py-3 text-sm shadow-lift ${
+          className={`toast-enter fixed bottom-5 right-5 z-[60] flex max-w-sm items-start gap-3 rounded-xl border bg-elevated/95 backdrop-blur-xl px-4 py-3 text-sm shadow-tahoe-lift ${
             notification.type === 'error'
               ? 'border-rose-600/40 text-rose-700 dark:text-rose-300'
               : notification.type === 'info'
                 ? 'border-line text-ink'
                 : 'border-emerald-600/40 text-emerald-700 dark:text-emerald-300'
           }`}
+          role="status"
+          aria-live="polite"
         >
           {notification.type === 'error' ? (
-            <AlertCircle className="h-4 w-4 shrink-0" />
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
           ) : (
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
           )}
           <span>{notification.message}</span>
         </div>

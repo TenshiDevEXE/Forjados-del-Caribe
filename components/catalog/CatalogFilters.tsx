@@ -53,7 +53,7 @@ export default function CatalogFilters({
     }`;
 
   const viewButton = (active: boolean) =>
-    `inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+    `inline-flex h-8 w-8 items-center justify-center rounded-md transition-all duration-150 ease-tahoe active:scale-[0.98] ${
       active ? 'bg-navy-800 text-white' : 'text-muted hover:text-ink'
     }`;
 

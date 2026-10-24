@@ -5,10 +5,14 @@ import type { Product } from '../lib/types';
 
 const PAGE_SIZE = 60;
 
+export type SortOption = 'default' | 'alphabetical' | 'byStock';
+
 export function useProductFilters(products: Product[], categories: string[]) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('default');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const groups = useMemo(() => buildGroups(categories), [categories]);
@@ -30,34 +34,52 @@ export function useProductFilters(products: Product[], categories: string[]) {
 
   const filteredProducts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    return products.filter(product => {
+    let result = products.filter(product => {
       if (selectedCategory) {
         if (product.category !== selectedCategory) return false;
       } else if (activeGroup && !groupCategories.has(product.category)) {
         return false;
       }
+      if (availableOnly && product.stock <= 0) return false;
       if (!term) return true;
       return [product.name, product.id, product.model ?? ''].some(field =>
         field.toLowerCase().includes(term)
       );
     });
-  }, [products, searchTerm, selectedCategory, activeGroup, groupCategories]);
+
+    switch (sortBy) {
+      case 'alphabetical':
+        result = [...result].sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'byStock':
+        result = [...result].sort((a, b) => b.stock - a.stock);
+        break;
+      default:
+        break;
+    }
+
+    return result;
+  }, [products, searchTerm, selectedCategory, activeGroup, groupCategories, availableOnly, sortBy]);
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [searchTerm, selectedGroup, selectedCategory]);
+  }, [searchTerm, selectedGroup, selectedCategory, availableOnly, sortBy]);
 
   const visibleProducts = useMemo(
     () => filteredProducts.slice(0, visibleCount),
     [filteredProducts, visibleCount]
   );
 
-  const hasFilters = Boolean(searchTerm.trim() || selectedGroup || selectedCategory);
+  const hasFilters = Boolean(
+    searchTerm.trim() || selectedGroup || selectedCategory || availableOnly
+  );
 
   const clearFilters = useCallback(() => {
     setSearchTerm('');
     setSelectedGroup(null);
     setSelectedCategory(null);
+    setAvailableOnly(false);
+    setSortBy('default');
   }, []);
 
   const loadMore = useCallback(() => {
@@ -75,6 +97,10 @@ export function useProductFilters(products: Product[], categories: string[]) {
     setSelectedGroup,
     selectedCategory,
     setSelectedCategory,
+    availableOnly,
+    setAvailableOnly,
+    sortBy,
+    setSortBy,
     visibleProducts,
     filteredProducts,
     groups,
