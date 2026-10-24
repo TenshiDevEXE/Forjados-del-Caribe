@@ -33,7 +33,7 @@ const FORBIDDEN_KEYS = new Set(
 const SCHEMAS = {
   config: ['name', 'slogan', 'logoType', 'accentColor', 'footerText', 'contactPhone', 'contactPhones', 'contactEmail', 'address', 'theme'],
   contactPhones: ['label', 'phone'],
-  products: ['id', 'name', 'category', 'model', 'stock'],
+  products: ['id', 'name', 'category', 'model', 'stock', 'image'],
 };
 
 function normalizeKey(key) {

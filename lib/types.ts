@@ -16,6 +16,7 @@ export interface Product {
   category: string;
   model?: string;
   stock: number;
+  image?: string;
 }
 
 // Número de WhatsApp al que se pueden enviar las solicitudes de cotización.

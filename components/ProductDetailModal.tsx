@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, ShoppingCart, Wrench } from 'lucide-react';
+import { CheckCircle2, Clock, Image as ImageIcon, ShoppingCart, Wrench } from 'lucide-react';
 import ModalShell from './ModalShell';
 import type { AccentStyles, Product } from '../lib/types';
 
@@ -30,6 +30,24 @@ export default function ProductDetailModal({
     >
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_240px]">
         <div className="space-y-5">
+          {product.image && (
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-line bg-sunken">
+              <img
+                src={product.image}
+                alt={product.name}
+                className="h-full w-full object-contain"
+                loading="lazy"
+                decoding="async"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+              <div className="hidden flex h-full w-full items-center justify-center text-muted">
+                <ImageIcon className="h-10 w-10" aria-hidden="true" />
+              </div>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold ${
@@ -78,6 +96,11 @@ export default function ProductDetailModal({
         </div>
 
         <aside className="h-fit rounded-lg border border-line bg-sunken p-5">
+          {!product.image && (
+            <div className="mb-4 flex aspect-square w-full items-center justify-center rounded-lg border border-line bg-elevated text-muted">
+              <ImageIcon className="h-10 w-10" aria-hidden="true" />
+            </div>
+          )}
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Referencia</p>
           <p className="mt-1.5 break-all font-mono text-xl font-semibold text-ink">{product.id}</p>
           <p className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-muted">Línea de producto</p>

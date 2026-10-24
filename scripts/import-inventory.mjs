@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // Campos que puede tener un producto del catálogo. Nada más se escribe.
-const PRODUCT_KEYS = ['id', 'name', 'category', 'model', 'stock'];
+const PRODUCT_KEYS = ['id', 'name', 'category', 'model', 'stock', 'image'];
 
 // Cualquier campo que suene a precio aborta la importación.
 const PRICE_PATTERN = /price|precio|cost|coste|costo|sale|purchase|importe|tarifa|valor|monto|descuento/i;
