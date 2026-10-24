@@ -10,11 +10,19 @@ export type SortOption = 'default' | 'alphabetical' | 'byStock';
 export function useProductFilters(products: Product[], categories: string[]) {
   const initial = readFiltersFromUrl();
   const [searchTerm, setSearchTerm] = useState(initial.search || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(initial.search || '');
   const [selectedGroup, setSelectedGroup] = useState<string | null>(initial.group);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initial.category);
   const [availableOnly, setAvailableOnly] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('default');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const groups = useMemo(() => buildGroups(categories), [categories]);
 
@@ -34,7 +42,7 @@ export function useProductFilters(products: Product[], categories: string[]) {
   const groupCategories = useMemo(() => new Set(activeGroup?.categories ?? []), [activeGroup]);
 
   const filteredProducts = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
+    const term = debouncedSearch.trim().toLowerCase();
     let result = products.filter(product => {
       if (selectedCategory) {
         if (product.category !== selectedCategory) return false;
@@ -64,7 +72,7 @@ export function useProductFilters(products: Product[], categories: string[]) {
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [searchTerm, selectedGroup, selectedCategory, availableOnly, sortBy]);
+  }, [debouncedSearch, selectedGroup, selectedCategory, availableOnly, sortBy]);
 
   const visibleProducts = useMemo(
     () => filteredProducts.slice(0, visibleCount),
@@ -72,7 +80,7 @@ export function useProductFilters(products: Product[], categories: string[]) {
   );
 
   const hasFilters = Boolean(
-    searchTerm.trim() || selectedGroup || selectedCategory || availableOnly
+    debouncedSearch.trim() || selectedGroup || selectedCategory || availableOnly
   );
 
   useEffect(() => {

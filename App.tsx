@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle2, ClipboardList, Mail, MapPin, MessageCircle, Minus, Package, Phone, Plus, Send, ShoppingCart, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowUp, CheckCircle2, ClipboardList, Mail, MapPin, MessageCircle, Minus, Package, Phone, Plus, Send, ShoppingCart, Trash2 } from 'lucide-react';
 
 import ThemeToggle from './components/ThemeToggle';
 const ProductDetailModal = lazy(() => import('./components/ProductDetailModal'));
@@ -54,12 +54,22 @@ export default function App() {
     }
   });
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
     try {
       localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
     } catch {}
   }, [viewMode]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const config = catalog?.config;
   const categories = catalog?.categories ?? [];
@@ -78,6 +88,10 @@ export default function App() {
     setSelectedGroup,
     selectedCategory,
     setSelectedCategory,
+    availableOnly,
+    setAvailableOnly,
+    sortBy,
+    setSortBy,
     visibleProducts,
     filteredProducts,
     groups,
@@ -294,6 +308,10 @@ export default function App() {
                 hasFilters={hasFilters}
                 onClearFilters={clearFilters}
                 accent={accent}
+                availableOnly={availableOnly}
+                onAvailableOnlyChange={setAvailableOnly}
+                sortBy={sortBy}
+                onSortByChange={setSortBy}
               />
 
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -603,6 +621,17 @@ export default function App() {
           )}
           <span>{notification.message}</span>
         </div>
+      )}
+
+      {showScrollTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-5 left-5 z-[60] flex h-10 w-10 items-center justify-center rounded-full border border-line bg-elevated/95 backdrop-blur-xl text-muted shadow-tahoe-lift transition-all duration-150 ease-tahoe hover:text-ink active:scale-[0.98]"
+          aria-label="Volver arriba"
+          title="Volver arriba"
+        >
+          <ArrowUp className="h-4 w-4" />
+        </button>
       )}
     </div>
   );

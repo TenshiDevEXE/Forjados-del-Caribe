@@ -1,4 +1,4 @@
-import { Search, Grid, List, X } from 'lucide-react';
+import { Search, Grid, List, X, Filter, ArrowUpDown } from 'lucide-react';
 import { formatCount } from '../../utils/format';
 import type { AccentStyles } from '../../lib/types';
 import type { CategoryGroup } from '../../lib/category-groups';
@@ -19,6 +19,10 @@ interface CatalogFiltersProps {
   hasFilters: boolean;
   onClearFilters: () => void;
   accent: AccentStyles;
+  availableOnly?: boolean;
+  onAvailableOnlyChange?: (value: boolean) => void;
+  sortBy?: 'default' | 'alphabetical' | 'byStock';
+  onSortByChange?: (value: 'default' | 'alphabetical' | 'byStock') => void;
 }
 
 export default function CatalogFilters({
@@ -37,6 +41,10 @@ export default function CatalogFilters({
   hasFilters,
   onClearFilters,
   accent,
+  availableOnly = false,
+  onAvailableOnlyChange,
+  sortBy = 'default',
+  onSortByChange,
 }: CatalogFiltersProps) {
   const groupChip = (active: boolean) =>
     `chip px-3 py-1.5 text-sm ${
@@ -70,25 +78,52 @@ export default function CatalogFilters({
             className="field pl-9"
           />
         </div>
-        <div className="inline-flex shrink-0 self-start rounded-lg border border-line p-0.5">
-          <button
-            onClick={() => onViewModeChange('list')}
-            className={viewButton(viewMode === 'list')}
-            aria-label="Vista de lista"
-            aria-pressed={viewMode === 'list'}
-          >
-            <List className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => onViewModeChange('grid')}
-            className={viewButton(viewMode === 'grid')}
-            aria-label="Vista en cuadrícula"
-            aria-pressed={viewMode === 'grid'}
-          >
-            <Grid className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
+                <div className="inline-flex shrink-0 self-start rounded-lg border border-line p-0.5">
+                  <button
+                    onClick={() => onViewModeChange('list')}
+                    className={viewButton(viewMode === 'list')}
+                    aria-label="Vista de lista"
+                    aria-pressed={viewMode === 'list'}
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => onViewModeChange('grid')}
+                    className={viewButton(viewMode === 'grid')}
+                    aria-label="Vista en cuadrícula"
+                    aria-pressed={viewMode === 'grid'}
+                  >
+                    <Grid className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+                {onAvailableOnlyChange && (
+                  <button
+                    onClick={() => onAvailableOnlyChange(!availableOnly)}
+                    className={`chip px-2.5 py-1 text-xs ${availableOnly ? `${accent.border} ${accent.softBg} ${accent.text}` : 'border-line bg-elevated text-muted hover:border-navy-400 hover:text-ink'}`}
+                    aria-pressed={availableOnly}
+                  >
+                    <Filter className="h-3.5 w-3.5" />
+                    Solo disponibles
+                  </button>
+                )}
+                {onSortByChange && (
+                  <div className="flex items-center gap-1.5 rounded-lg border border-line bg-elevated px-2 py-1">
+                    <ArrowUpDown className="h-3.5 w-3.5 text-muted" />
+                    <select
+                      value={sortBy}
+                      onChange={(e) => onSortByChange(e.target.value as any)}
+                      className="bg-transparent text-xs text-ink focus:outline-none"
+                    >
+                      <option value="default">Por defecto</option>
+                      <option value="alphabetical">Alfabético (A-Z)</option>
+                      <option value="byStock">Con más existencia</option>
+                    </select>
+                  </div>
+                )}
+              </div>
 
       <div className="border-t border-line pt-4">
         <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
