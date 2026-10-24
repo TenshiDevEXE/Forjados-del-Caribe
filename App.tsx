@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
-import { ClipboardCopy, ClipboardList, Mail, MapPin, MessageCircle, Minus, Package, Phone, Plus, Send, ShoppingCart, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowUp, CheckCircle2, ClipboardCopy, ClipboardList, Mail, MapPin, MessageCircle, Minus, Package, Phone, Plus, Send, ShoppingCart, Trash2 } from 'lucide-react';
 
 import ThemeToggle from './components/ThemeToggle';
 const ProductDetailModal = lazy(() => import('./components/ProductDetailModal'));

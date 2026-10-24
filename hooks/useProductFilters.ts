@@ -9,10 +9,10 @@ export type SortOption = 'default' | 'alphabetical' | 'byStock';
 
 export function useProductFilters(products: Product[], categories: string[]) {
   const initial = readFiltersFromUrl();
-  const [searchTerm, setSearchTerm] = useState(initial.search || '');
-  const [debouncedSearch, setDebouncedSearch] = useState(initial.search || '');
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(initial.group);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(initial.category);
+  const [searchTerm, setSearchTerm] = useState<string>(initial.search ?? '');
+  const [debouncedSearch, setDebouncedSearch] = useState<string>(initial.search ?? '');
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(initial.group ?? null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(initial.category ?? null);
   const [availableOnly, setAvailableOnly] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('default');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
