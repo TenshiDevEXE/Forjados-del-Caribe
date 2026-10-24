@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ArrowUp, CheckCircle2, ClipboardList, Mail, MapPin, MessageCircle, Minus, Package, Phone, Plus, Send, ShoppingCart, Trash2 } from 'lucide-react';
+import { ClipboardCopy, ClipboardList, Mail, MapPin, MessageCircle, Minus, Package, Phone, Plus, Send, ShoppingCart, Trash2 } from 'lucide-react';
 
 import ThemeToggle from './components/ThemeToggle';
 const ProductDetailModal = lazy(() => import('./components/ProductDetailModal'));
@@ -115,7 +115,30 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [notification, setNotification]);
 
-  const sendQuote = useCallback(() => {
+  const [copied, setCopied] = useState(false);
+
+  const copyQuote = useCallback(async () => {
+    if (quoteItems.length === 0) return;
+    const lines = quoteItems.map(
+      item => `- ${item.quantity} x ${item.product.name} (Codigo ${item.product.id})`
+    );
+    const text = [
+      `Solicitud de cotizacion - ${config?.name ?? 'Catalogo'}`,
+      '',
+      ...lines,
+      customerName.trim() && `Cliente: ${customerName.trim()}`,
+      quoteNote.trim() && `Comentario: ${quoteNote.trim()}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setNotification({ message: 'No se pudo copiar la lista', type: 'error' });
+    }
+  }, [quoteItems, customerName, quoteNote, config?.name, setNotification]);
     const phone = whatsappNumber(selectedPhone?.phone ?? '');
     if (!phone) {
       setNotification({ message: 'Configura al menos un número de WhatsApp para enviar la solicitud', type: 'error' });
@@ -340,7 +363,7 @@ export default function App() {
                   )}
                 </div>
               ) : viewMode === 'list' ? (
-                <div className="panel divide-y divide-line overflow-hidden">
+                <div className="panel divide-y divide-line overflow-hidden stagger">
                   {visibleProducts.map(product => (
                     <ProductListItem
                       key={product.id}
@@ -352,7 +375,7 @@ export default function App() {
                   ))}
                 </div>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 stagger">
                   {visibleProducts.map(product => (
                     <ProductGridItem
                       key={product.id}
@@ -384,12 +407,21 @@ export default function App() {
                     <ClipboardList className="h-5 w-5 text-muted" /> Productos solicitados
                   </h2>
                   {quoteItems.length > 0 && (
-                    <button
-                      onClick={clearQuote}
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-700 hover:underline dark:text-rose-300"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" /> Vaciar lista
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={copyQuote}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-muted transition-colors hover:text-ink"
+                        aria-label="Copiar lista de cotización"
+                      >
+                        <ClipboardCopy className="h-3.5 w-3.5" /> {copied ? 'Copiado' : 'Copiar'}
+                      </button>
+                      <button
+                        onClick={clearQuote}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-700 hover:underline dark:text-rose-300"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Vaciar lista
+                      </button>
+                    </div>
                   )}
                 </div>
 
