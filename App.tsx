@@ -120,14 +120,20 @@ export default function App() {
   const copyQuote = useCallback(async () => {
     if (quoteItems.length === 0) return;
     const lines = quoteItems.map(
-      item => `- ${item.quantity} x ${item.product.name} (Codigo ${item.product.id})`
+      item => `- ${item.quantity} x ${item.product.name} | Código: ${item.product.id}`
     );
     const text = [
-      `Solicitud de cotizacion - ${config?.name ?? 'Catalogo'}`,
+      `SOLICITUD DE COTIZACIÓN`,
+      `${config?.name ?? 'Catálogo'}`,
       '',
+      'Productos:',
       ...lines,
+      '',
+      `Cantidad total: ${quoteCount} ${quoteCount === 1 ? 'unidad' : 'unidades'}`,
       customerName.trim() && `Cliente: ${customerName.trim()}`,
       quoteNote.trim() && `Comentario: ${quoteNote.trim()}`,
+      '',
+      'Por favor, indicar disponibilidad y precio.',
     ]
       .filter(Boolean)
       .join('\n');
@@ -138,30 +144,36 @@ export default function App() {
     } catch {
       setNotification({ message: 'No se pudo copiar la lista', type: 'error' });
     }
-  }, [quoteItems, customerName, quoteNote, config?.name, setNotification]);
+  }, [quoteItems, customerName, quoteNote, config?.name, quoteCount, setNotification]);
+
+  const sendQuote = useCallback(() => {
     const phone = whatsappNumber(selectedPhone?.phone ?? '');
     if (!phone) {
       setNotification({ message: 'Configura al menos un número de WhatsApp para enviar la solicitud', type: 'error' });
       return;
     }
     const lines = quoteItems.map(
-      item => `• ${item.quantity} x ${item.product.name} (Código ${item.product.id})`
+      item => `• ${item.quantity} x ${item.product.name} | Código: ${item.product.id}`
     );
     const message = [
-      `*Solicitud de cotización* — ${config?.name ?? 'Catálogo'}`,
+      `*SOLICITUD DE COTIZACIÓN*`,
+      `🏢 ${config?.name ?? 'Catálogo'}`,
       '',
+      '*Productos:*',
       ...lines,
       '',
-      customerName.trim() && `Cliente: ${customerName.trim()}`,
-      quoteNote.trim() && `Comentario: ${quoteNote.trim()}`,
+      `*Cantidad total:* ${quoteCount} ${quoteCount === 1 ? 'unidad' : 'unidades'}`,
       '',
-      'Por favor, indíquenme disponibilidad y precio.',
+      customerName.trim() && `*Cliente:* ${customerName.trim()}`,
+      quoteNote.trim() && `*Comentario:* ${quoteNote.trim()}`,
+      '',
+      '_Por favor, indicar disponibilidad y precio._',
     ]
       .filter(Boolean)
       .join('\n');
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
-  }, [quoteItems, customerName, quoteNote, selectedPhone, config?.name, setNotification]);
+  }, [quoteItems, customerName, quoteNote, selectedPhone, config?.name, quoteCount, setNotification]);
 
   const tabs: TabDef[] = [
     { id: 'catalog', label: 'Catálogo', icon: Package },
