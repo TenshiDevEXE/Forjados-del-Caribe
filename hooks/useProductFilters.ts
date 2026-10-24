@@ -2,15 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { buildGroups } from '../lib/category-groups';
 import type { CategoryGroup } from '../lib/category-groups';
 import type { Product } from '../lib/types';
-
-const PAGE_SIZE = 60;
+import { PAGE_SIZE } from '../lib/constants';
+import { readFiltersFromUrl, writeFiltersToUrl } from '../lib/url';
 
 export type SortOption = 'default' | 'alphabetical' | 'byStock';
 
 export function useProductFilters(products: Product[], categories: string[]) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const initial = readFiltersFromUrl();
+  const [searchTerm, setSearchTerm] = useState(initial.search || '');
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(initial.group);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(initial.category);
   const [availableOnly, setAvailableOnly] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('default');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -73,6 +74,15 @@ export function useProductFilters(products: Product[], categories: string[]) {
   const hasFilters = Boolean(
     searchTerm.trim() || selectedGroup || selectedCategory || availableOnly
   );
+
+  useEffect(() => {
+    writeFiltersToUrl({
+      search: searchTerm,
+      group: selectedGroup,
+      category: selectedCategory,
+      view: 'list',
+    });
+  }, [searchTerm, selectedGroup, selectedCategory]);
 
   const clearFilters = useCallback(() => {
     setSearchTerm('');

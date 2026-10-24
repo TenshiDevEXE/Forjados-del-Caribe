@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, ClipboardList, Mail, MapPin, MessageCircle, Minus, Package, Phone, Plus, Send, ShoppingCart, Trash2 } from 'lucide-react';
 
 import ThemeToggle from './components/ThemeToggle';
-import ProductDetailModal from './components/ProductDetailModal';
+const ProductDetailModal = lazy(() => import('./components/ProductDetailModal'));
 import CatalogFilters from './components/catalog/CatalogFilters';
 import { ProductGridItem, ProductListItem } from './components/catalog/ProductCard';
 
@@ -13,6 +13,7 @@ import { useCatalog, useTheme } from './hooks/useCatalog';
 import { useProductFilters } from './hooks/useProductFilters';
 import { useQuote } from './hooks/useQuote';
 import { formatCount, whatsappNumber } from './utils/format';
+import { VIEW_MODE_STORAGE_KEY } from './lib/constants';
 
 type ViewMode = 'grid' | 'list';
 
@@ -44,8 +45,21 @@ export default function App() {
   } = useQuote();
 
   const [activeTab, setActiveTab] = useState<TabId>('catalog');
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    try {
+      const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+      return stored === 'grid' || stored === 'list' ? stored : 'list';
+    } catch {
+      return 'list';
+    }
+  });
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
+    } catch {}
+  }, [viewMode]);
 
   const config = catalog?.config;
   const categories = catalog?.categories ?? [];
@@ -556,16 +570,18 @@ export default function App() {
       </footer>
 
       {selectedProduct && (
-        <ProductDetailModal
-          product={selectedProduct}
-          inQuote={quoteItems.some(item => item.product.id === selectedProduct.id)}
-          accent={accent}
-          onClose={() => setSelectedProduct(null)}
-          onAddToQuote={product => {
-            addToQuote(product);
-            setSelectedProduct(null);
-          }}
-        />
+        <Suspense fallback={null}>
+          <ProductDetailModal
+            product={selectedProduct}
+            inQuote={quoteItems.some(item => item.product.id === selectedProduct.id)}
+            accent={accent}
+            onClose={() => setSelectedProduct(null)}
+            onAddToQuote={product => {
+              addToQuote(product);
+              setSelectedProduct(null);
+            }}
+          />
+        </Suspense>
       )}
 
       {notification && (

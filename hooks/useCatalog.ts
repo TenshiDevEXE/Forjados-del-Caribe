@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { loadCatalog } from '../lib/api';
 import type { Catalog, Theme } from '../lib/types';
-
-const THEME_STORAGE_KEY = 'catalogo:theme';
+import { THEME_STORAGE_KEY } from '../lib/constants';
 
 function readStoredTheme(): Theme | null {
   try {
@@ -11,6 +10,33 @@ function readStoredTheme(): Theme | null {
   } catch {
     return null;
   }
+}
+
+export function useTheme(initialTheme?: Theme) {
+  const [theme, setTheme] = useState<Theme>(() => readStoredTheme() ?? initialTheme ?? 'light');
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => {
+      const next: Theme = prev === 'dark' ? 'light' : 'dark';
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, next);
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const setThemePersisted = useCallback((next: Theme) => {
+    setTheme(next);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch {}
+  }, []);
+
+  return { theme, setTheme: setThemePersisted, toggleTheme };
 }
 
 export function useTheme(initialTheme?: Theme) {

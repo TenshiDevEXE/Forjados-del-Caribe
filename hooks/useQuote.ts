@@ -1,12 +1,35 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Notification, Product, QuoteItem } from '../lib/types';
+import { QUOTE_STORAGE_KEY } from '../lib/constants';
+
+function loadQuote(): QuoteItem[] {
+  try {
+    const raw = localStorage.getItem(QUOTE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function saveQuote(items: QuoteItem[]) {
+  try {
+    localStorage.setItem(QUOTE_STORAGE_KEY, JSON.stringify(items));
+  } catch {}
+}
 
 export function useQuote() {
-  const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
+  const [quoteItems, setQuoteItems] = useState<QuoteItem[]>(() => loadQuote());
   const [customerName, setCustomerName] = useState('');
   const [quoteNote, setQuoteNote] = useState('');
   const [phoneIndex, setPhoneIndex] = useState(0);
   const [notification, setNotification] = useState<Notification | null>(null);
+
+  useEffect(() => {
+    saveQuote(quoteItems);
+  }, [quoteItems]);
 
   const notify = useCallback((message: string, type: Notification['type'] = 'success') => {
     setNotification({ message, type });
