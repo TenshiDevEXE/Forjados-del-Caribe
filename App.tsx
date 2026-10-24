@@ -31,6 +31,8 @@ export default function App() {
     quoteItems,
     customerName,
     setCustomerName,
+    customerAddress,
+    setCustomerAddress,
     quoteNote,
     setQuoteNote,
     phoneIndex,
@@ -119,6 +121,16 @@ export default function App() {
 
   const copyQuote = useCallback(async () => {
     if (quoteItems.length === 0) return;
+    if (!customerName.trim()) {
+      setNotification({ message: 'Ingresa el nombre del cliente', type: 'error' });
+      setActiveTab('quote');
+      return;
+    }
+    if (!customerAddress.trim()) {
+      setNotification({ message: 'Ingresa la dirección del cliente', type: 'error' });
+      setActiveTab('quote');
+      return;
+    }
     const lines = quoteItems.map(
       item => `- ${item.quantity} x ${item.product.name} | Código: ${item.product.id}`
     );
@@ -126,12 +138,15 @@ export default function App() {
       `SOLICITUD DE COTIZACIÓN`,
       `${config?.name ?? 'Catálogo'}`,
       '',
-      'Productos:',
+      '*CLIENTE:*',
+      `Nombre: ${customerName.trim()}`,
+      `Dirección: ${customerAddress.trim()}`,
+      '',
+      '*PRODUCTOS:*',
       ...lines,
       '',
-      `Cantidad total: ${quoteCount} ${quoteCount === 1 ? 'unidad' : 'unidades'}`,
-      customerName.trim() && `Cliente: ${customerName.trim()}`,
-      quoteNote.trim() && `Comentario: ${quoteNote.trim()}`,
+      `*Cantidad total:* ${quoteCount} ${quoteCount === 1 ? 'unidad' : 'unidades'}`,
+      quoteNote.trim() && `*Comentario:* ${quoteNote.trim()}`,
       '',
       'Por favor, indicar disponibilidad y precio.',
     ]
@@ -144,12 +159,22 @@ export default function App() {
     } catch {
       setNotification({ message: 'No se pudo copiar la lista', type: 'error' });
     }
-  }, [quoteItems, customerName, quoteNote, config?.name, quoteCount, setNotification]);
+  }, [quoteItems, customerName, customerAddress, quoteNote, config?.name, quoteCount, setNotification]);
 
   const sendQuote = useCallback(() => {
     const phone = whatsappNumber(selectedPhone?.phone ?? '');
     if (!phone) {
       setNotification({ message: 'Configura al menos un número de WhatsApp para enviar la solicitud', type: 'error' });
+      return;
+    }
+    if (!customerName.trim()) {
+      setNotification({ message: 'Ingresa el nombre del cliente', type: 'error' });
+      setActiveTab('quote');
+      return;
+    }
+    if (!customerAddress.trim()) {
+      setNotification({ message: 'Ingresa la dirección del cliente', type: 'error' });
+      setActiveTab('quote');
       return;
     }
     const lines = quoteItems.map(
@@ -159,21 +184,24 @@ export default function App() {
       `*SOLICITUD DE COTIZACIÓN*`,
       `🏢 ${config?.name ?? 'Catálogo'}`,
       '',
-      '*Productos:*',
+      '*DATOS DEL CLIENTE:*',
+      `• *Nombre:* ${customerName.trim()}`,
+      `• *Dirección:* ${customerAddress.trim()}`,
+      '',
+      '*PRODUCTOS SOLICITADOS:*',
       ...lines,
       '',
-      `*Cantidad total:* ${quoteCount} ${quoteCount === 1 ? 'unidad' : 'unidades'}`,
+      `*Total de ítems:* ${quoteCount} ${quoteCount === 1 ? 'unidad' : 'unidades'}`,
       '',
-      customerName.trim() && `*Cliente:* ${customerName.trim()}`,
       quoteNote.trim() && `*Comentario:* ${quoteNote.trim()}`,
-      '',
-      '_Por favor, indicar disponibilidad y precio._',
+      quoteNote.trim() && '',
+      '_Favor enviar cotización con disponibilidad y precio._',
     ]
       .filter(Boolean)
       .join('\n');
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
-  }, [quoteItems, customerName, quoteNote, selectedPhone, config?.name, quoteCount, setNotification]);
+  }, [quoteItems, customerName, customerAddress, quoteNote, selectedPhone, config?.name, quoteCount, setNotification]);
 
   const tabs: TabDef[] = [
     { id: 'catalog', label: 'Catálogo', icon: Package },
@@ -496,12 +524,26 @@ export default function App() {
                 <div className="mt-4 space-y-3.5">
                   <div>
                     <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted">
-                      Nombre (opcional)
+                      Nombre del cliente *
                     </label>
                     <input
                       value={customerName}
                       onChange={e => setCustomerName(e.target.value)}
                       className="field"
+                      placeholder="Nombre y apellido"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted">
+                      Dirección *
+                    </label>
+                    <input
+                      value={customerAddress}
+                      onChange={e => setCustomerAddress(e.target.value)}
+                      className="field"
+                      placeholder="Dirección de entrega"
+                      required
                     />
                   </div>
                   <div>
@@ -536,9 +578,9 @@ export default function App() {
                   )}
                   <button
                     onClick={sendQuote}
-                    disabled={quoteItems.length === 0}
+                    disabled={quoteItems.length === 0 || !customerName.trim() || !customerAddress.trim()}
                     className={`btn-accent w-full pt-3 pb-3 ${
-                      quoteItems.length === 0
+                      quoteItems.length === 0 || !customerName.trim() || !customerAddress.trim()
                         ? 'cursor-not-allowed border border-line bg-sunken text-muted'
                         : `${accent.bg} ${accent.bgHover} ${accent.onAccent}`
                     }`}
@@ -546,7 +588,7 @@ export default function App() {
                     <Send className="h-4 w-4" /> Solicitar por WhatsApp
                   </button>
                   <p className="text-center text-xs leading-relaxed text-muted">
-                    La solicitud se envía sin precios. Un asesor le responderá con la cotización.
+                    *Nombre y dirección son obligatorios. La solicitud se envía sin precios.
                   </p>
                 </div>
               </aside>

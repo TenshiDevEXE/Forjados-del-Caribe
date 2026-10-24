@@ -23,6 +23,7 @@ function saveQuote(items: QuoteItem[]) {
 export function useQuote() {
   const [quoteItems, setQuoteItems] = useState<QuoteItem[]>(() => loadQuote());
   const [customerName, setCustomerName] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
   const [quoteNote, setQuoteNote] = useState('');
   const [phoneIndex, setPhoneIndex] = useState(0);
   const [notification, setNotification] = useState<Notification | null>(null);
@@ -76,6 +77,8 @@ export function useQuote() {
     setQuoteItems,
     customerName,
     setCustomerName,
+    customerAddress,
+    setCustomerAddress,
     quoteNote,
     setQuoteNote,
     phoneIndex,
