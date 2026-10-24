@@ -179,38 +179,42 @@ export default function App() {
     }
 
     const now = new Date();
-    const dateStr = now.toLocaleDateString('es-DO');
-    const timeStr = now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true });
 
     const lines = quoteItems.map(
-      (item, idx) => `${idx + 1}. *${item.product.id}* - ${item.product.name} | *Cant:* ${item.quantity}`
+      (item, idx) =>
+        `${String(idx + 1).padStart(2, '0')}. *CÓDIGO:* ${item.product.id} | *CANTIDAD:* ${item.quantity}\n    *DESCRIPCIÓN:* ${item.product.name}`
     );
 
     const message = [
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `*${(config?.name ?? 'FORJADOS DEL CARIBE SRL').toUpperCase()}*`,
       `*SOLICITUD DE COTIZACIÓN*`,
-      `${config?.name ?? 'Forjados Del Caribe SRL'}`,
-      `📅 ${dateStr} | 🕒 ${timeStr}`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
       '',
-      '*DATOS DEL CLIENTE:*',
-      `• *Nombre:* ${customerName.trim()}`,
-      `• *Dirección:* ${customerAddress.trim()}`,
+      `*INFORMACIÓN GENERAL*`,
+      `• Fecha: ${dateStr}`,
+      `• Hora: ${timeStr}`,
+      `• Origen: Catálogo Web`,
       '',
-      '*PRODUCTOS SOLICITADOS:*',
+      `*DATOS DEL CLIENTE*`,
+      `• Nombre / Razón Social: ${customerName.trim()}`,
+      `• Dirección de Entrega: ${customerAddress.trim()}`,
+      '',
+      `*DETALLE SOLICITADO*`,
       ...lines,
       '',
-      '*RESUMEN:*',
-      `• Líneas: ${quoteItems.length}`,
+      `*RESUMEN*`,
+      `• Líneas solicitadas: ${quoteItems.length}`,
       `• Total de unidades: ${quoteCount}`,
       '',
-      quoteNote.trim() ? `*OBSERVACIONES:* ${quoteNote.trim()}` : null,
-      quoteNote.trim() ? '' : null,
-      '_Solicito cotización con disponibilidad, precio unitario, precio total, tiempo de entrega y forma de pago._',
-    ]
-      .filter(Boolean)
-      .join('\n');
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `_Respuesta por este mismo medio._`,
+    ].join('\n');
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
-  }, [quoteItems, customerName, customerAddress, quoteNote, selectedPhone, config?.name, quoteCount, setNotification]);
+  }, [quoteItems, customerName, customerAddress, selectedPhone, config?.name, quoteCount, setNotification]);
 
   const tabs: TabDef[] = [
     { id: 'catalog', label: 'Catálogo', icon: Package },
